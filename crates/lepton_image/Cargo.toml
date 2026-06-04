@@ -1,0 +1,23 @@
+[package]
+name = "lepton_opcodes"
+version = "0.1.0"
+edition = "2024"
+authors = ["The Lepton3 Contributors"]
+
+description = "The Lepton3 image format and parsing"
+readme = "README.md"
+
+repository = "https://github.com/duplessisaurore/lepton3"
+license = "AGPLv3"
+
+keywords = ["languages", "scripting", "script"]
+
+[dependencies]
+
+[features]
+default = ["parser", "validator", "writer"]
+
+# Big Integer support options
+parser = []
+validator = []
+writer = []

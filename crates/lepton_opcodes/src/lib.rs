@@ -10,6 +10,9 @@
 //! The `lepton3_opcodes` crate provides the set of operations
 //! and their opcodes for execution in the VM
 
+#![warn(clippy::pedantic)]
+#![no_std]
+
 ///
 /// All of the opcodes of the language correspond
 /// to some operation in the virtual machine.
