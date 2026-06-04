@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/lepton_opcodes"
 ]
 
 resolver = "3"
@@ -9,3 +10,4 @@ hashbrown = "0.17.1"
 
 # std is a default feature
 thiserror = { version = "2.0.18", default-features = false }
+lepton_opcodes = { path = "./crates/lepton_opcodes" }
