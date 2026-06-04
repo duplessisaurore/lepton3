@@ -20,15 +20,15 @@
 /// Generally an instruction in the VM is some
 /// [ opcode; 1 byte ] [ operand; <operand-size> ]
 ///
-/// This opcode_enum macro outputs the opcodes as an enum
-/// with a TryFrom<u8> impl and a operand_size from pairs of:
+/// This `opcode_enum` macro outputs the opcodes as an enum
+/// with a `TryFrom<u8>` impl and a `operand_size` from pairs of:
 ///
 /// <EnumVariantName> = (<Opcode>, <OperandSize>),
 ///
 macro_rules! opcode_enum {
     ($($(#[$attr:meta])* $name:ident = ($val:expr, $args:expr)),* $(,)?) => {
         #[repr(u8)]
-        enum Opcode {
+        pub enum Opcode {
             $($(#[$attr])* $name = $val),*
         }
 
