@@ -15,7 +15,7 @@ pub enum ValidationError {
     InvalidEntryPoint { index: u32, function_count: usize },
     /// A function's instruction range exceeds the instruction stream
     FunctionOutOfBounds { function_index: usize },
-    /// A function's local_count is less than its arg_count
+    /// A function's `local_count` is less than its `arg_count`
     LocalCountTooSmall { function_index: usize },
     /// An unknown opcode was encountered
     UnknownOpcode { opcode: u8, offset: u32 },
@@ -25,9 +25,9 @@ pub enum ValidationError {
     InvalidJumpOffset { offset: u32, target: u32 },
     /// A Call instruction references an invalid function index
     InvalidFunctionIndex { offset: u32, index: u32 },
-    /// An ObjectNew instruction references an invalid object table index
+    /// An `ObjectNew` instruction references an invalid object table index
     InvalidObjectIndex { offset: u32, index: u32 },
-    /// A Load/Store instruction references an index beyond local_count
+    /// A Load/Store instruction references an index beyond `local_count`
     InvalidLocalIndex {
         offset: u32,
         index: u32,
@@ -99,6 +99,11 @@ impl core::fmt::Display for ValidationError {
 }
 
 /// Validate a parsed Lepton3 image
+///
+/// # Errors
+///
+/// This will error if the validation fails
+/// for the parsed Lepton3 image in any way.
 pub fn validate(image: &Image) -> Result<(), ValidationError> {
     validate_version(image)?;
     validate_entry_point(image)?;
@@ -145,8 +150,8 @@ fn validate_functions(image: &Image) -> Result<(), ValidationError> {
         }
 
         // instruction range must be within the stream
-        let start = function.instruction_offset as u64;
-        let end = start + function.instruction_length as u64;
+        let start = u64::from(function.instruction_offset);
+        let end = start + u64::from(function.instruction_length);
         if end > stream_len {
             return Err(ValidationError::FunctionOutOfBounds { function_index: i });
         }
@@ -164,8 +169,16 @@ fn validate_instructions(image: &Image) -> Result<(), ValidationError> {
         let start = function.instruction_offset;
         let end = start + function.instruction_length;
         let fn_stream = &stream[start as usize..end as usize];
+        debug_assert_eq!(fn_stream.len(), (end - start) as usize);
 
-        validate_function_instructions(fn_stream, start, fn_index, function.local_count, image)?;
+        validate_function_instructions(
+            fn_stream,
+            end - start,
+            start,
+            fn_index,
+            function.local_count,
+            image,
+        )?;
     }
 
     Ok(())
@@ -173,22 +186,21 @@ fn validate_instructions(image: &Image) -> Result<(), ValidationError> {
 
 fn validate_function_instructions(
     fn_stream: &[u8],
+    fn_len: u32,
     base_offset: u32,
     fn_index: usize,
     local_count: u32,
     image: &Image,
 ) -> Result<(), ValidationError> {
-    let fn_len = fn_stream.len();
-
     // parse all opcodes and their offset for further opcode
     // specific checking of offsets and things later.
     let mut instructions: Vec<(u32, Opcode)> = Vec::new();
-    let mut c = 0usize;
+    let mut c = 0u32;
 
     // parse each opcode in the function length
     while c < fn_len {
-        let local_offset = c as u32;
-        let byte = fn_stream[c];
+        let local_offset = c;
+        let byte = fn_stream[c as usize];
 
         // try parse the opcode to validate it's correcntess
         let opcode = Opcode::try_from(byte).map_err(|_| ValidationError::UnknownOpcode {
@@ -197,7 +209,7 @@ fn validate_function_instructions(
         })?;
 
         // check the bounds of every opcode fall into the function size
-        let next = c + 1 + opcode.operand_size() as usize;
+        let next = c + 1 + u32::from(opcode.operand_size());
         if next > fn_len {
             return Err(ValidationError::InstructionOutOfBounds {
                 offset: base_offset + local_offset,
@@ -281,10 +293,10 @@ fn validate_debug_info(debug_info: &DebugInfo) -> Result<(), ValidationError> {
         }
 
         // location table must be sorted ascending by instruction offset
-        if let Some(prev) = last_offset {
-            if location.instruction_offset < prev {
-                return Err(ValidationError::LocationTableUnsorted { entry: i });
-            }
+        if let Some(prev) = last_offset
+            && location.instruction_offset < prev
+        {
+            return Err(ValidationError::LocationTableUnsorted { entry: i });
         }
         last_offset = Some(location.instruction_offset);
     }

@@ -63,7 +63,7 @@ impl Writer {
     ///
     /// # Errors
     ///
-    /// Will return a WriteError if the usize does not fit
+    /// Will return a `WriteError` if the usize does not fit
     /// in a u16.
     fn try_write_usize_u16(&mut self, value: usize) -> Result<(), WriteError> {
         self.write_u16(u16::try_from(value)?);
@@ -74,7 +74,7 @@ impl Writer {
     ///
     /// # Errors
     ///
-    /// Will return a WriteError if the usize does not fit
+    /// Will return a `WriteError` if the usize does not fit
     /// in a u32.
     fn try_write_len_u32(&mut self, value: usize) -> Result<(), WriteError> {
         self.write_u32(u32::try_from(value)?);
@@ -96,6 +96,16 @@ impl Writer {
 }
 
 /// Write a Lepton3 image to raw bytes
+///
+/// # Errors
+///
+/// This will error if anything failed during the writing
+/// process, for example if an unexpected value occurs or
+/// something similar.
+///
+/// One possible case is that the Image data exceeds the
+/// allowed image bounds for the number/length of some things
+/// such as strings.
 pub fn write(image: &Image) -> Result<Vec<u8>, WriteError> {
     let mut w = Writer::new();
 

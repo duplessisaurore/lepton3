@@ -21,7 +21,7 @@ const fn parse_u8(s: &str) -> u8 {
 
 /// The current VM major version, used to check image compatibility
 ///
-/// This is taken from the lepton_image cargo.toml version. This should
+/// This is taken from the `lepton_image` cargo.toml version. This should
 /// only be changed rarely if a highly breaking change is made, as the VM
 /// only executes things with the same major version!
 pub const VM_MAJOR_VERSION: u8 = parse_u8(env!("CARGO_PKG_VERSION_MAJOR"));
