@@ -3,6 +3,29 @@
 
 use alloc::{string::String, vec::Vec};
 
+/// A const function that lets us parse some string
+/// into a u8 at compile time.
+const fn parse_u8(s: &str) -> u8 {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    let mut num: u8 = 0;
+
+    while i < bytes.len() {
+        let b = bytes[i];
+        assert!(b >= b'0' && b <= b'9', "Non-digit in version string");
+        num = num * 10 + (b - b'0');
+        i += 1;
+    }
+    num
+}
+
+/// The current VM major version, used to check image compatibility
+///
+/// This is taken from the lepton_image cargo.toml version. This should
+/// only be changed rarely if a highly breaking change is made, as the VM
+/// only executes things with the same major version!
+pub const VM_MAJOR_VERSION: u8 = parse_u8(env!("CARGO_PKG_VERSION_MAJOR"));
+
 /// A full Lepton3 bytecode image
 pub struct Image {
     pub header: Header,

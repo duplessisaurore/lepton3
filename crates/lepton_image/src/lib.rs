@@ -67,10 +67,10 @@ pub mod format;
 #[cfg(feature = "parser")]
 pub mod parser;
 
-// Validates the semantic correctness of an image
-// #[cfg(feature = "validator")]
-// pub mod validator;
+/// Validates the semantic correctness of an image
+#[cfg(feature = "validator")]
+pub mod validator;
 
-// Serialises the rust struct representation back into an image
-// #[cfg(feature = "writer")]
-// pub mod writer;
+/// Serialises the rust struct representation back into an image
+#[cfg(feature = "writer")]
+pub mod writer;

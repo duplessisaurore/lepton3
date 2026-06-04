@@ -147,13 +147,15 @@ opcode_enum! {
     BoolNot = (0x33, 0),
 
     // Control flow 0x4
-    // Jumps to some offset in the instructions table
+    /// Jumps to a byte offset within the current function's instruction stream.
     Jump = (0x41, 4),
 
-    // Pops a boolean off the stack and jumps to some offset if true
+    /// Pops a boolean off the stack and jumps to a byte offset within
+    /// the current function's instruction stream if true.
     JumpIfTrue = (0x42, 4),
 
-    // Pops a boolean off the stack and jumps to some offset if false
+    /// Pops a boolean off the stack and jumps to a byte offset within
+    /// the current function's instruction stream if false.
     JumpIfFalse = (0x43, 4),
 
     // Calls a function based on an index into the function table
@@ -222,7 +224,8 @@ opcode_enum! {
     CallCap = (0x91, 4),
 
     // Error handling 0xA
-    /// Register an error handler at some offset
+    /// Registers an error handler at a byte offset within the current
+    /// function's instruction stream.
     Try = (0xA1, 4),
 
     /// Pop the last registered error handler

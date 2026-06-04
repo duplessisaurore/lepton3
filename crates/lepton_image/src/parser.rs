@@ -1,4 +1,4 @@
-//! A parser that takes the raw bytes of a file
+//! A parser that takes the raw bytes of a lepton3 image
 //! and outputs the Rust struct representation
 
 use alloc::{string::String, vec::Vec};

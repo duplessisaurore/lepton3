@@ -13,6 +13,8 @@ license = "AGPLv3"
 keywords = ["languages", "scripting", "script"]
 
 [dependencies]
+lepton_opcodes = { workspace = true }
+hashbrown = { workspace = true }
 
 [features]
 default = ["parser", "validator", "writer"]
