@@ -1,7 +1,9 @@
 //! A parser that takes the raw bytes of a file
 //! and outputs the Rust struct representation
 
-use crate::image::{DebugInfo, Function, Header, Image, ObjectType, SourceLocation};
+use alloc::{string::String, vec::Vec};
+
+use crate::format::{DebugInfo, Function, Header, Image, ObjectType, SourceLocation};
 
 /// Errors that can occur during parsing
 #[derive(Debug)]
@@ -43,11 +45,11 @@ impl<'a> Reader<'a> {
 
     /// Reads a certain number of bytes from the reader, advancing
     /// the cursor by the number of bytes if successful
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// If there is not the specified number of bytes left in the data,
-    /// an UnexpectedEof error will be returned
+    /// an `UnexpectedEof` error will be returned
     fn read_bytes(&mut self, count: usize) -> Result<&'a [u8], ParseError> {
         if self.remaining() < count {
             return Err(ParseError::UnexpectedEof);
@@ -74,7 +76,7 @@ impl<'a> Reader<'a> {
         Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
     }
 
-    /// EXpects to read a UTF-8 string from the data
+    /// Expects to read a UTF-8 string from the data
     fn read_string(&mut self) -> Result<String, ParseError> {
         let length = self.read_u16()? as usize;
         let bytes = self.read_bytes(length)?;
@@ -83,6 +85,12 @@ impl<'a> Reader<'a> {
 }
 
 /// Fully parse a Lepton3 image from raw bytes
+///
+/// # Errors
+///
+/// If there is an issue when parsing this file, say
+/// due to some issue with a string or an unexpected EOF
+/// then a `ParseError` will be returned.
 pub fn parse(bytes: &[u8]) -> Result<Image, ParseError> {
     let mut r = Reader::new(bytes);
 

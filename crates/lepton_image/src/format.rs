@@ -1,6 +1,8 @@
 //! The format of the image expressed as rust
 //! structures rather than written in english in the lib.rs
 
+use alloc::{string::String, vec::Vec};
+
 /// A full Lepton3 bytecode image
 pub struct Image {
     pub header: Header,
@@ -45,4 +47,3 @@ pub struct SourceLocation {
     pub line: u32,
     pub column: u32,
 }
-

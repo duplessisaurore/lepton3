@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "crates/lepton_opcodes"
+    "crates/lepton_opcodes",
+    "crates/lepton_image"
 ]
 
 resolver = "3"
