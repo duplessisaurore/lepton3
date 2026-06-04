@@ -2,9 +2,6 @@
 //! of a Lepton3 image.
 
 use crate::format::{DebugInfo, Image, VM_MAJOR_VERSION};
-use alloc::vec::Vec;
-use hashbrown::HashSet;
-use lepton_opcodes::Opcode;
 
 /// Errors that can occur during validation
 #[derive(Debug)]
@@ -17,22 +14,6 @@ pub enum ValidationError {
     FunctionOutOfBounds { function_index: usize },
     /// A function's `local_count` is less than its `arg_count`
     LocalCountTooSmall { function_index: usize },
-    /// An unknown opcode was encountered
-    UnknownOpcode { opcode: u8, offset: u32 },
-    /// An instruction's operand bytes exceed the instruction stream
-    InstructionOutOfBounds { offset: u32 },
-    /// A jump offset is out of bounds
-    InvalidJumpOffset { offset: u32, target: u32 },
-    /// A Call instruction references an invalid function index
-    InvalidFunctionIndex { offset: u32, index: u32 },
-    /// An `ObjectNew` instruction references an invalid object table index
-    InvalidObjectIndex { offset: u32, index: u32 },
-    /// A Load/Store instruction references an index beyond `local_count`
-    InvalidLocalIndex {
-        offset: u32,
-        index: u32,
-        function_index: usize,
-    },
     /// A debug info file index is out of bounds in the location table
     InvalidFileIndex { entry: usize },
     /// The location table is not sorted by instruction offset
@@ -61,32 +42,6 @@ impl core::fmt::Display for ValidationError {
                 f,
                 "function {function_index} local_count is less than arg_count"
             ),
-            ValidationError::UnknownOpcode { opcode, offset } => {
-                write!(f, "unknown opcode 0x{opcode:02X} at offset {offset}")
-            }
-            ValidationError::InstructionOutOfBounds { offset } => write!(
-                f,
-                "instruction at offset {offset} exceeds total instruction stream size"
-            ),
-            ValidationError::InvalidJumpOffset { offset, target } => {
-                write!(f, "jump at offset {offset} targets invalid offset {target}")
-            }
-            ValidationError::InvalidFunctionIndex { offset, index } => write!(
-                f,
-                "call at offset {offset} references invalid function index {index}"
-            ),
-            ValidationError::InvalidObjectIndex { offset, index } => write!(
-                f,
-                "object instruction at offset {offset} references invalid object index {index}"
-            ),
-            ValidationError::InvalidLocalIndex {
-                offset,
-                index,
-                function_index,
-            } => write!(
-                f,
-                "local instruction at offset {offset} references invalid local index {index} in function {function_index}"
-            ),
             ValidationError::InvalidFileIndex { entry } => write!(
                 f,
                 "debug location entry {entry} references invalid file index"
@@ -108,7 +63,6 @@ pub fn validate(image: &Image) -> Result<(), ValidationError> {
     validate_version(image)?;
     validate_entry_point(image)?;
     validate_functions(image)?;
-    validate_instructions(image)?;
 
     if let Some(debug_info) = &image.debug_info {
         validate_debug_info(debug_info)?;
@@ -160,128 +114,6 @@ fn validate_functions(image: &Image) -> Result<(), ValidationError> {
     Ok(())
 }
 
-fn validate_instructions(image: &Image) -> Result<(), ValidationError> {
-    let stream = &image.instructions;
-
-    // validate the instructions in each function are legitimate and valid
-    // to the best we can from the image only.
-    for (fn_index, function) in image.function_table.iter().enumerate() {
-        let start = function.instruction_offset;
-        let end = start + function.instruction_length;
-        let fn_stream = &stream[start as usize..end as usize];
-        debug_assert_eq!(fn_stream.len(), (end - start) as usize);
-
-        validate_function_instructions(
-            fn_stream,
-            end - start,
-            start,
-            fn_index,
-            function.local_count,
-            image,
-        )?;
-    }
-
-    Ok(())
-}
-
-fn validate_function_instructions(
-    fn_stream: &[u8],
-    fn_len: u32,
-    base_offset: u32,
-    fn_index: usize,
-    local_count: u32,
-    image: &Image,
-) -> Result<(), ValidationError> {
-    // parse all opcodes and their offset for further opcode
-    // specific checking of offsets and things later.
-    let mut instructions: Vec<(u32, Opcode)> = Vec::new();
-    let mut c = 0u32;
-
-    // parse each opcode in the function length
-    while c < fn_len {
-        let local_offset = c;
-        let byte = fn_stream[c as usize];
-
-        // try parse the opcode to validate it's correcntess
-        let opcode = Opcode::try_from(byte).map_err(|_| ValidationError::UnknownOpcode {
-            opcode: byte,
-            offset: base_offset + local_offset,
-        })?;
-
-        // check the bounds of every opcode fall into the function size
-        let next = c + 1 + u32::from(opcode.operand_size());
-        if next > fn_len {
-            return Err(ValidationError::InstructionOutOfBounds {
-                offset: base_offset + local_offset,
-            });
-        }
-
-        instructions.push((local_offset, opcode));
-        c = next;
-    }
-
-    // Collect valid jump targets from the instruction offsets
-    let valid_offsets: HashSet<u32> = instructions.iter().map(|(offset, _)| *offset).collect();
-
-    // Now validate each opcode to check the offsets are correct.
-    for (local_offset, opcode) in &instructions {
-        let abs_offset = base_offset + local_offset;
-
-        // operand bytes start immediately after the opcode byte
-        let operand = (local_offset + 1) as usize;
-
-        match opcode {
-            // Validate the jump target falls within the valid offsets
-            Opcode::Jump | Opcode::JumpIfTrue | Opcode::JumpIfFalse | Opcode::Try => {
-                let target = read_u32(fn_stream, operand);
-                if !valid_offsets.contains(&target) {
-                    return Err(ValidationError::InvalidJumpOffset {
-                        offset: abs_offset,
-                        target,
-                    });
-                }
-            }
-
-            // Validate the call function index falls in the function table
-            Opcode::Call => {
-                let index = read_u32(fn_stream, operand);
-                if index as usize >= image.function_table.len() {
-                    return Err(ValidationError::InvalidFunctionIndex {
-                        offset: abs_offset,
-                        index,
-                    });
-                }
-            }
-
-            // Validate the object new index falls into the object table
-            Opcode::ObjectNew => {
-                let index = read_u32(fn_stream, operand);
-                if index as usize >= image.object_table.len() {
-                    return Err(ValidationError::InvalidObjectIndex {
-                        offset: abs_offset,
-                        index,
-                    });
-                }
-            }
-
-            // Validate load/store grabs from a valid index into the local table.
-            Opcode::Load | Opcode::Store => {
-                let index = read_u32(fn_stream, operand);
-                if index >= local_count {
-                    return Err(ValidationError::InvalidLocalIndex {
-                        offset: abs_offset,
-                        index,
-                        function_index: fn_index,
-                    });
-                }
-            }
-            _ => {}
-        }
-    }
-
-    Ok(())
-}
-
 fn validate_debug_info(debug_info: &DebugInfo) -> Result<(), ValidationError> {
     let file_count = debug_info.files.len();
     let mut last_offset: Option<u32> = None;
@@ -302,14 +134,4 @@ fn validate_debug_info(debug_info: &DebugInfo) -> Result<(), ValidationError> {
     }
 
     Ok(())
-}
-
-/// Read a u32 from a byte slice at a given offset (little-endian)
-fn read_u32(data: &[u8], offset: usize) -> u32 {
-    u32::from_le_bytes([
-        data[offset],
-        data[offset + 1],
-        data[offset + 2],
-        data[offset + 3],
-    ])
 }
