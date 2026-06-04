@@ -1,0 +1,17 @@
+[package]
+name = "lepton_vm"
+version = "0.1.0"
+edition = "2024"
+authors = ["The Lepton3 Contributors"]
+
+description = "The Lepton3 virtual machine responsible for executing the bytecode"
+readme = "README.md"
+
+repository = "https://github.com/duplessisaurore/lepton3"
+license = "AGPLv3"
+
+keywords = ["languages", "scripting", "script"]
+
+[dependencies]
+lepton_opcodes = { workspace = true }
+lepton_image = { workspace = true }
