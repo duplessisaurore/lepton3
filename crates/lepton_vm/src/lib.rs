@@ -13,7 +13,7 @@
 #![warn(clippy::pedantic)]
 #![no_std]
 
-/// We need allocations for lists and
+/// We need allocations for arrays and
 /// various other types on the heap.
 extern crate alloc;
 
@@ -21,5 +21,14 @@ extern crate alloc;
 /// bytecode.
 pub mod values;
 
-/// Heap allocator using Cheney's algorithm for GC.
-pub mod heap;
+/// The actual bytecode interpreter of an image
+pub mod virtual_machine;
+
+/// Tag generator implementation
+pub mod tagger;
+
+// Heap allocator implementation
+pub mod heap_allocator;
+
+/// Capabilities provided to the VM
+pub mod capabilities;

@@ -169,11 +169,11 @@ opcode_enum! {
     /// within the current function's instruction stream.
     Jump = (0x41, 0),
 
-    /// Pops a boolean and an integer byte offset.
+    /// Pops an integer byte offset, then pops a boolean.
     /// Jumps to the offset if the boolean is true.
     JumpIfTrue = (0x42, 0),
 
-    /// Pops a boolean and an integer byte offset.
+    /// Pops an integer byte offset, then pops a boolean.
     /// Jumps to the offset if the boolean is false.
     JumpIfFalse = (0x43, 0),
 
@@ -185,6 +185,12 @@ opcode_enum! {
 
     /// An unrecoverable error which halts all execution.
     Abort = (0x46, 0),
+
+    /// Tail-calls a function, reusing the current stack frame.
+    ///
+    /// Similar to Call but does not push a new call frame onto the
+    /// call stack.
+    TailCall = (0x47, 0),
 
     // Locals 0x5
 
@@ -214,7 +220,7 @@ opcode_enum! {
     /// Pops an array and pushes its length.
     ArrayLength = (0x65, 0),
 
-    /// Pops an array and an integer index and pushes the element at that index.
+    /// Pops an integer index, then pops an array and pushes the element at that index.
     ArrayNth = (0x66, 0),
 
     /// Pops two arrays and pushes their concatenation.
@@ -227,7 +233,7 @@ opcode_enum! {
     /// Fields are popped in reverse order (last field first).
     ObjectNew = (0x71, 0),
 
-    /// Pops an integer field index, a value, and an object and pushes
+    /// Pops a value, an integer field index and an object and pushes
     /// a new object with that field set to the value.
     ObjectSet = (0x72, 0),
 
@@ -310,6 +316,8 @@ opcode_enum! {
     // Type Conversion 0xD
 
     /// Pops an integer and pushes it converted to a float.
+    /// precision maybe lost as i64 is 64 bits wide, but f64
+    /// is only 52 bits wide
     IntToFloat = (0xD1, 0),
 
     /// Pops a float and pushes it converted to an integer by truncation.

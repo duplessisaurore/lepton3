@@ -3,25 +3,12 @@
 
 use alloc::vec::Vec;
 
-use crate::values::Value;
+use crate::{
+    heap_allocator::{HeapAllocator, HeapItem},
+    values::Value,
+};
 
-/// All allocations into the heap
-pub enum HeapItem {
-    /// An object which is identified
-    /// by some tag and a set of values as fields.
-    Object { tag: u32, fields: Vec<Value> },
-
-    /// A variable-length sequential list of values
-    List(Vec<Value>),
-
-    /// This heap item has been forwarded from the From
-    /// space to the To space. this is used for the
-    /// Cheney's Algorithm garbage collector.
-    Forwarded(usize),
-}
-
-/// Allocator for heap objects
-pub struct HeapAllocator {
+pub struct CheneyAllocator {
     // Using the Cheney memory management model
     // with semispaces
     /// One of the possible semispaces (from)
@@ -54,7 +41,7 @@ pub struct HeapAllocator {
     pub target_utilisation: usize,
 }
 
-impl HeapAllocator {
+impl CheneyAllocator {
     /// Creates a new Cheney semi-space allocator with an initial capacity.
     ///
     /// cramped and wasting threshold should both be between 0 and 100.
@@ -84,29 +71,8 @@ impl HeapAllocator {
         }
     }
 
-    /// Checks if a garbage collection cycle is required before allocating.
-    ///
-    /// NOTE: This must always be called before popping off a heap based
-    /// value from the stack into a rust variable, in order to prevent referring
-    /// to a garbage collected value (root corruption bug)
-    pub fn ensure_capacity(&mut self, roots: &mut [&mut Value]) {
-        if self.from_space.len() >= self.gc_threshold {
-            self.collect(roots);
-        }
-    }
-
-    /// Direct moving of an item onto the heap.
-    ///  
-    /// Assumes `ensure_capacity` was already checked by the caller for this
-    /// heap item's fields and things.
-    pub fn alloc_raw(&mut self, item: HeapItem) -> usize {
-        let idx = self.from_space.len();
-        self.from_space.push(item);
-        idx
-    }
-
     /// Moves all reachable objects from `from_space` into `to_space` and updates pointers.
-    pub fn collect(&mut self, roots: &mut [&mut Value]) {
+    fn collect(&mut self, roots: &mut [&mut Value]) {
         // Clear out the target space to prepare for the moving
         self.to_space.clear();
 
@@ -116,7 +82,7 @@ impl HeapAllocator {
             self.migrate_value(root);
         }
 
-        // Because heap values and lists can refer to other heap items
+        // Because heap values and arrays can refer to other heap items
         // we need to bring them over into our new `to_space`
         //
         // so while we havent scanned the entire `to_space`, keep scanning
@@ -135,8 +101,8 @@ impl HeapAllocator {
                         self.migrate_value(val);
                     }
                 }
-                HeapItem::List(fields) => {
-                    // Migrate all of the fields over from a list
+                HeapItem::Array(fields) => {
+                    // Migrate all of the fields over from an array
                     for val in fields {
                         self.migrate_value(val);
                     }
@@ -187,8 +153,8 @@ impl HeapAllocator {
 
     /// Internal helper to migrate a single value descriptor if it's a pointer.
     fn migrate_value(&mut self, val: &mut Value) {
-        // Extract the original heap space index if the value is an object or list
-        let (Value::Object(old_idx) | Value::List(old_idx)) = *val else {
+        // Extract the original heap space index if the value is an object or array
+        let (Value::Object(old_idx) | Value::Array(old_idx)) = *val else {
             // We don't need to migrate the other non-heap primitives
             return;
         };
@@ -204,7 +170,7 @@ impl HeapAllocator {
         if let HeapItem::Forwarded(new_idx) = &self.from_space[old_idx] {
             *val = match *val {
                 Value::Object(_) => Value::Object(*new_idx),
-                Value::List(_) => Value::List(*new_idx),
+                Value::Array(_) => Value::Array(*new_idx),
                 _ => unreachable!(),
             };
         // This item hasn't been migrated into the `to_space` yet
@@ -223,9 +189,37 @@ impl HeapAllocator {
             // Update the original value pointer to point to the new location
             *val = match *val {
                 Value::Object(_) => Value::Object(new_idx),
-                Value::List(_) => Value::List(new_idx),
+                Value::Array(_) => Value::Array(new_idx),
                 _ => unreachable!(),
             };
         }
+    }
+}
+
+impl HeapAllocator for CheneyAllocator {
+    fn ensure_capacity(&mut self, roots: &mut [&mut Value]) {
+        if self.from_space.len() >= self.gc_threshold {
+            self.collect(roots);
+        }
+    }
+
+    fn alloc_raw(&mut self, item: HeapItem) -> usize {
+        let idx = self.from_space.len();
+        self.from_space.push(item);
+        idx
+    }
+
+    fn get_item(&self, ptr: usize) -> &HeapItem {
+        &self.from_space[ptr]
+    }
+
+    fn get_item_mut(&mut self, ptr: usize) -> &mut HeapItem {
+        &mut self.from_space[ptr]
+    }
+}
+
+impl Default for CheneyAllocator {
+    fn default() -> Self {
+        Self::new(256, 75, 25, 2, 256)
     }
 }

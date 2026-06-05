@@ -13,5 +13,13 @@ license = "AGPLv3"
 keywords = ["languages", "scripting", "script"]
 
 [dependencies]
+cfg-if = { workspace = true }
+hashbrown = { workspace = true }
+
 lepton_opcodes = { workspace = true }
 lepton_image = { workspace = true }
+
+[features]
+default = ["tagger_bump_gen", "heap_allocator_cheney"]
+tagger_bump_gen = []
+heap_allocator_cheney = []
