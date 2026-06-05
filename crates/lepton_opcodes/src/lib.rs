@@ -8,7 +8,19 @@
 //! ## Lepton3 Opcodes
 //!
 //! The `lepton3_opcodes` crate provides the set of operations
-//! and their opcodes for execution in the VM
+//! and their opcodes for execution in the VM.
+//!
+//! ## Instruction Format
+//!
+//! All instructions are a single opcode byte. There are no inline operands
+//! except for the three Push instructions which carry their constant value
+//! inline:
+//!
+//!   [ PushInt;   1 byte ][ value; 8 bytes ]
+//!   [ PushFloat; 1 byte ][ value; 8 bytes ]
+//!   [ PushBool;  1 byte ][ value; 1 byte  ]
+//!
+//! All other instructions pop their arguments from the stack for uniformity.
 
 #![warn(clippy::pedantic)]
 #![no_std]
@@ -55,10 +67,13 @@ macro_rules! opcode_enum {
 
 opcode_enum! {
     // Stack based operations 0x0
+
     /// Pushes an integer constant onto the stack.
+    /// [ PushInt; 1 byte ][ value; 8 bytes ]
     PushInt = (0x00, 8),
 
     /// Pushes a boolean constant onto the stack.
+    /// [ PushBool; 1 byte ][ value; 1 byte ]
     PushBool = (0x01, 1),
 
     /// Pushes a UNIT () onto the stack.
@@ -67,222 +82,240 @@ opcode_enum! {
     /// Duplicates the top of the stack.
     Duplicate = (0x03, 0),
 
-    /// Discards the top of the stack
+    /// Discards the top of the stack.
     Pop = (0x04, 0),
 
     /// Swaps the top two values of the stack.
     Swap = (0x05, 0),
 
-    /// Pushes a floating point constant onto the stack
+    /// Pushes a floating point constant onto the stack.
+    /// [ PushFloat; 1 byte ][ value; 8 bytes ]
     PushFloat = (0x06, 8),
 
     // Integer Arithmetic 0x1
-    /// +
+
+    /// Pops two integers and pushes their sum.
     Add = (0x10, 0),
 
-    /// -
+    /// Pops two integers and pushes their difference.
     Sub = (0x11, 0),
 
-    /// *
+    /// Pops two integers and pushes their product.
     Mul = (0x12, 0),
 
-    /// //
+    /// Pops two integers and pushes their integer quotient.
     Div = (0x13, 0),
 
-    /// %
+    /// Pops two integers and pushes their remainder.
     Mod = (0x14, 0),
 
-    /// Integer negation (-)
+    /// Pops an integer and pushes its negation.
     Neg = (0x15, 0),
 
-    /// Bitwise operations
+    // Bitwise operations
 
-    /// Left shift <<
+    /// Pops two integers and pushes the result of a left shift.
     ShiftL = (0x16, 0),
 
-    /// Right shift >>
+    /// Pops two integers and pushes the result of a right shift.
     ShiftR = (0x17, 0),
 
-    /// Bitwise AND
+    /// Pops two integers and pushes their bitwise AND.
     And = (0x18, 0),
 
-    /// Bitwise OR
+    /// Pops two integers and pushes their bitwise OR.
     Or = (0x19, 0),
 
-    /// Bitwise XOR
+    /// Pops two integers and pushes their bitwise XOR.
     Xor = (0x1A, 0),
 
-    /// Bitwise NOT
+    /// Pops an integer and pushes its bitwise NOT.
     Not = (0x1B, 0),
 
-    // Comparison Operators
-    /// Integer comparison 0x2
+    // Integer Comparison 0x2
 
-    /// =
+    /// Pops two integers and pushes whether they are equal.
     Equal = (0x21, 0),
 
-    /// <>
+    /// Pops two integers and pushes whether they are not equal.
     NotEqual = (0x22, 0),
 
-    /// <
+    /// Pops two integers and pushes whether the first is less than the second.
     LessThan = (0x23, 0),
 
-    /// <=
+    /// Pops two integers and pushes whether the first is less than or equal to the second.
     LessThanEq = (0x24, 0),
 
-    /// >
+    /// Pops two integers and pushes whether the first is greater than the second.
     GreaterThan = (0x25, 0),
 
-    /// >=
+    /// Pops two integers and pushes whether the first is greater than or equal to the second.
     GreaterThanEq = (0x26, 0),
 
-    // Boolean Comparison 0x3
-    /// Logical AND &&
+    // Boolean Operations 0x3
+
+    /// Pops two booleans and pushes their logical AND.
     BoolAnd = (0x31, 0),
 
-    /// Logical OR ||
+    /// Pops two booleans and pushes their logical OR.
     BoolOr = (0x32, 0),
 
-    /// Logical NOT !
+    /// Pops a boolean and pushes its logical NOT.
     BoolNot = (0x33, 0),
 
-    // Control flow 0x4
-    /// Jumps to a byte offset within the current function's instruction stream.
-    Jump = (0x41, 4),
+    // Control Flow 0x4
 
-    /// Pops a boolean off the stack and jumps to a byte offset within
-    /// the current function's instruction stream if true.
-    JumpIfTrue = (0x42, 4),
+    /// Pops an integer byte offset and jumps to that position
+    /// within the current function's instruction stream.
+    Jump = (0x41, 0),
 
-    /// Pops a boolean off the stack and jumps to a byte offset within
-    /// the current function's instruction stream if false.
-    JumpIfFalse = (0x43, 4),
+    /// Pops a boolean and an integer byte offset.
+    /// Jumps to the offset if the boolean is true.
+    JumpIfTrue = (0x42, 0),
 
-    // Calls a function based on an index into the function table
-    Call = (0x44, 4),
+    /// Pops a boolean and an integer byte offset.
+    /// Jumps to the offset if the boolean is false.
+    JumpIfFalse = (0x43, 0),
 
-    // Returns from the current function back to the caller
+    /// Pops an integer function index and calls that function.
+    Call = (0x44, 0),
+
+    /// Returns from the current function back to the caller.
     Return = (0x45, 0),
 
-    // An unrecoverable error which should halt all execution
+    /// An unrecoverable error which halts all execution.
     Abort = (0x46, 0),
 
     // Locals 0x5
-    /// Loads a local from some index and pushes it onto the stack
-    Load = (0x51, 4),
 
-    /// Pops from the stack and puts the value into some index in the locals
-    Store = (0x52, 4),
+    /// Pops an integer local index and pushes the value of that local
+    /// onto the stack.
+    Load = (0x51, 0),
 
-    // List Operations 0x6
-    /// Pushes a new list onto the stack
-    ListNew = (0x61, 0),
+    /// Pops an integer local index and a value and stores the value
+    /// into that local.
+    Store = (0x52, 0),
 
-    /// Pops a value and list from the stack, pushes a new list with the value prepended
-    ListCons = (0x62, 0),
+    // Array Operations 0x6
 
-    /// Pop a list and push first element onto stack
-    ListHead = (0x63, 0),
+    /// Pushes a new empty array onto the stack.
+    ArrayNew = (0x61, 0),
 
-    // Pop a list and push list without first element
-    ListTail = (0x64, 0),
+    /// Pops a value and an array and pushes a new array
+    /// with the value prepended.
+    ArrayCons = (0x62, 0),
 
-    /// Pop a list and push its length onto the stack
-    ListLength = (0x65, 0),
+    /// Pops an array and pushes its first element.
+    ArrayHead = (0x63, 0),
 
-    /// Pop a list and int index, push element at index onto the stack
-    ListNth = (0x66, 0),
+    /// Pops an array and pushes a new array without its first element.
+    ArrayTail = (0x64, 0),
 
-    /// Pop two lists and push the concatenated list
-    ListAppend = (0x67, 0),
+    /// Pops an array and pushes its length.
+    ArrayLength = (0x65, 0),
 
-    // Object operations 0x7
+    /// Pops an array and an integer index and pushes the element at that index.
+    ArrayNth = (0x66, 0),
 
-    /// Creates a new object based on an index into the object table
-    /// Pop values from stack for object fields and push object with tag layout
-    ObjectNew = (0x71, 4),
+    /// Pops two arrays and pushes their concatenation.
+    ArrayAppend = (0x67, 0),
 
-    /// Pop an object and value and return a new object with the field at the
-    /// operand index set to the value
-    ObjectSet = (0x72, 4),
+    // Object Operations 0x7
 
-    // Pop object, push field at index
-    ObjectGet = (0x73, 4),
+    /// Pops an integer object type index and field values from the stack
+    /// and pushes a new object of that type.
+    /// Fields are popped in reverse order (last field first).
+    ObjectNew = (0x71, 0),
 
-    /// Pop an object and push its field count
+    /// Pops an integer field index, a value, and an object and pushes
+    /// a new object with that field set to the value.
+    ObjectSet = (0x72, 0),
+
+    /// Pops an integer field index and an object and pushes
+    /// the value of that field.
+    ObjectGet = (0x73, 0),
+
+    /// Pops an object and pushes its field count.
     ObjectLength = (0x74, 0),
 
     // Tag Operations 0x8
-    /// Pop two tags and push a boolean based on their equality
+
+    /// Pops two tags and pushes whether they are equal.
     TagEq = (0x81, 0),
 
-    /// Pushes a new tag onto the stack
+    /// Pushes a new unique tag onto the stack.
     TagNew = (0x82, 0),
 
     // Capability Operations 0x9
-    /// Invoke a core capability identified by an integer
-    CallCap = (0x91, 4),
 
-    // Error handling 0xA
-    /// Registers an error handler at a byte offset within the current
-    /// function's instruction stream.
-    Try = (0xA1, 4),
+    /// Pops an integer capability index and invokes that capability.
+    CallCap = (0x91, 0),
 
-    /// Pop the last registered error handler
+    // Error Handling 0xA
+
+    /// Pops an integer byte offset and registers an error handler
+    /// at that offset within the current function's instruction stream.
+    Try = (0xA1, 0),
+
+    /// Pops the last registered error handler.
     EndTry = (0xA2, 0),
 
-    /// Pops the last registered error handler
-    /// and jumps to the error handler's offset
-    ///
-    /// Aborts if no error handler registered
+    /// Pops the last registered error handler and jumps to its offset.
+    /// Aborts if no error handler is registered.
     Raise = (0xA3, 0),
 
-    // Floating point operations
-    /// +
+    // Floating Point Operations 0xB
+
+    /// Pops two floats and pushes their sum.
     FAdd = (0xB1, 0),
 
-    /// -
+    /// Pops two floats and pushes their difference.
     FSub = (0xB2, 0),
 
-    /// *
+    /// Pops two floats and pushes their product.
     FMul = (0xB3, 0),
 
-    /// /
+    /// Pops two floats and pushes their quotient.
     FDiv = (0xB4, 0),
 
-    /// Floating point negation (-)
+    /// Pops a float and pushes its negation.
     FNeg = (0xB5, 0),
 
-    /// %
+    /// Pops two floats and pushes their remainder.
     FMod = (0xB6, 0),
 
-    // Floating point comparison 0xC
-    /// =
+    // Floating Point Comparison 0xC
+
+    /// Pops two floats and pushes whether they are equal.
     FEqual = (0xC1, 0),
 
-    /// <>
+    /// Pops two floats and pushes whether they are not equal.
     FNotEqual = (0xC2, 0),
 
-    /// <
+    /// Pops two floats and pushes whether the first is less than the second.
     FLessThan = (0xC3, 0),
 
-    /// <=
+    /// Pops two floats and pushes whether the first is less than or equal to the second.
     FLessThanEq = (0xC4, 0),
 
-    /// >
+    /// Pops two floats and pushes whether the first is greater than the second.
     FGreaterThan = (0xC5, 0),
 
-    /// >=
+    /// Pops two floats and pushes whether the first is greater than or equal to the second.
     FGreaterThanEq = (0xC6, 0),
 
-    /// = NaN
+    /// Pops a float and pushes whether it is NaN.
     FIsNaN = (0xC7, 0),
 
-    // Type based helpers 0xD
+    // Type Conversion 0xD
+
+    /// Pops an integer and pushes it converted to a float.
     IntToFloat = (0xD1, 0),
+
+    /// Pops a float and pushes it converted to an integer by truncation.
     FloatToInt = (0xD2, 0),
 
-    /// Pushes a tag that identifies the type of the element
-    /// at the top of the stack
-    TypeOf = (0xD3, 0)
+    /// Pushes a tag identifying the type of the value at the top of the stack.
+    /// Does not consume the value.
+    TypeOf = (0xD3, 0),
 }
