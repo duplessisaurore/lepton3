@@ -7,7 +7,7 @@ use core::error::Error;
 
 use alloc::{boxed::Box, vec::Vec};
 use hashbrown::hash_map::Entry;
-use lepton_image::format::Image;
+use lepton_image::format::{Image, SourceLocation};
 use lepton_opcodes::Opcode;
 
 use crate::{
@@ -78,6 +78,26 @@ pub enum VmError {
 
     /// `Abort` opcode was executed.
     Abort,
+
+    /// A runtime error with a captured stack trace attached
+    WithTrace {
+        error: Box<VmError>,
+        trace: Vec<StackTraceFrame>,
+    },
+}
+
+/// A single frame in a captured stack trace
+#[derive(Debug)]
+pub struct StackTraceFrame {
+    /// Index of the function in the function table
+    pub function_idx: usize,
+
+    /// The instruction offset within the function at the time of the error.
+    /// Points to the instruction that caused the error.
+    pub instruction_offset: usize,
+
+    /// Source location if debug info is present in the image.
+    pub source_location: Option<SourceLocation>,
 }
 
 /// A registered error handler
@@ -191,7 +211,15 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             match self.step() {
                 Ok(Some(value)) => return Ok(value),
                 Ok(None) => {}
-                Err(error) => return Err(error),
+
+                // Capture trace for the error so we have debug info attached.
+                Err(error) => {
+                    let trace = self.capture_trace();
+                    return Err(VmError::WithTrace {
+                        error: Box::new(error),
+                        trace,
+                    });
+                }
             }
         }
     }
@@ -1172,6 +1200,64 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
     fn gc_collect(&mut self) {
         let mut refs: Vec<&mut Value> = self.stack.iter_mut().collect();
         self.heap.ensure_capacity(refs.as_mut_slice());
+    }
+
+    /// Captures the current call stack as a stack trace, resolving
+    /// source locations from debug info if available.
+    ///
+    /// The trace is ordered most-recent frame first.
+    fn capture_trace(&self) -> Vec<StackTraceFrame> {
+        self.call_stack
+            .iter()
+            .rev()
+            .map(|frame| {
+                // `instruction_pointer` has already been advanced past the
+                // current instruction by `fetch_byte`, so subtract 1 to
+                // point back at the instruction that actually failed.
+                let instruction_offset = frame.instruction_pointer.saturating_sub(1);
+
+                // Ignore an invalid offset with source info lookup 
+                // to try still get as good debug info as we can
+                let Ok(abs_offset) = u32::try_from(frame.instruction_base + instruction_offset) else {
+                    return StackTraceFrame {
+                        function_idx: frame.function_idx,
+                        instruction_offset,
+                        source_location: None,
+                    }
+                };
+
+                // Resolve the source location if debug info is attached
+                let source_location = self.resolve_source_location(abs_offset);
+
+                // Add a stack trace frame for this call frame
+                StackTraceFrame {
+                    function_idx: frame.function_idx,
+                    instruction_offset,
+                    source_location,
+                }
+            })
+            .collect()
+    }
+
+    /// Resolves an absolute instruction offset to a source location
+    /// by searching the debug info table
+    ///
+    /// Returns `None` if no location covers the given offset.
+    fn resolve_source_location(
+        &self,
+        abs_offset: u32,
+    ) -> Option<SourceLocation> {
+        let Some(debug_info) = &self.image.debug_info else {
+            return None
+        };
+    
+        // Find the closest location which covers this instruction
+        let idx = debug_info
+            .locations
+            .partition_point(|loc| loc.instruction_offset <= abs_offset)
+            .saturating_sub(1);
+
+        debug_info.locations.get(idx).copied()
     }
 }
 
