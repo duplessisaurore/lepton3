@@ -7,7 +7,7 @@
 //!
 //! ## Lepton3 Image
 //!
-//! The `lepton3_image` crate provides parsing for the Lepton3
+//! The `lepton_image` crate provides parsing for the Lepton3
 //! image format which can then be executed by the virtual machine.
 //!
 //! The Lepton3 image crate will only permit images whose major

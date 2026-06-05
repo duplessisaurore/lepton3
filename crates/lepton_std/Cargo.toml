@@ -1,0 +1,17 @@
+[package]
+name = "lepton_std"
+version = "0.1.0"
+edition = "2024"
+authors = ["The Lepton3 Contributors"]
+
+description = "The Lepton3 virtual machine interpreter binary for rust_std supported systems, uses default features."
+readme = "README.md"
+
+repository = "https://github.com/duplessisaurore/lepton3"
+license = "AGPLv3"
+
+keywords = ["languages", "scripting", "script"]
+
+[dependencies]
+lepton_vm = { workspace = true }
+lepton_image = { workspace = true }

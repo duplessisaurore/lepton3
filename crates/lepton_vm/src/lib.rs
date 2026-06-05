@@ -7,7 +7,7 @@
 //!
 //! ## Lepton3 Virtual Machine
 //!
-//! The `lepton3_vm` crate provides the actual virtual machine
+//! The `lepton_vm` crate provides the actual virtual machine
 //! responsible for execution of the Lepton3 bytecode.
 
 #![warn(clippy::pedantic)]

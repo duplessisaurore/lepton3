@@ -1,0 +1,64 @@
+use lepton_vm::{
+    capabilities::CapabilityFn, heap_allocator::HeapAllocatorImpl, tagger::TagGeneratorImpl,
+    values::Value,
+};
+
+/// Basic set of capabilities that we give to our VM
+/// essentially just a basic print of a value
+pub fn all() -> Vec<CapabilityFn<HeapAllocatorImpl, TagGeneratorImpl>> {
+    vec![cap_print, cap_print_char]
+}
+
+/// Capability 0: pops a value from the top of the stack and
+/// prints it without a newline
+fn cap_print(
+    stack: &mut Vec<Value>,
+    _heap: &mut HeapAllocatorImpl,
+    _tagger: &mut TagGeneratorImpl,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let value = stack
+        .pop()
+        .ok_or("stack underflow in cap_print, no values on stack")?;
+    print!("{}", format_value(&value));
+    Ok(())
+}
+
+fn format_value(value: &Value) -> String {
+    match value {
+        Value::Unit => "()".to_string(),
+        Value::Int(i) => i.to_string(),
+        Value::Float(f) => f.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Tag(t) => format!("<tag:{}>", u64::from(*t)),
+        Value::Object(idx) => format!("<object:{idx}>"),
+        Value::Array(idx) => format!("<array:{idx}>"),
+    }
+}
+
+/// Capability 1: pops an integer from the stack and prints it
+/// as a unicode character.
+///
+/// Returns an error if the integer is not a valid unicode codepoint
+/// or if the value is not an integer.
+fn cap_print_char(
+    stack: &mut Vec<Value>,
+    _heap: &mut HeapAllocatorImpl,
+    _tagger: &mut TagGeneratorImpl,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let value = stack.pop().ok_or("stack underflow in cap_print_char")?;
+
+    match value {
+        Value::Int(i) => {
+            // i64 -> u32 -> char, both conversions can fail
+            let codepoint = u32::try_from(i)
+                .map_err(|_| format!("integer {i} is out of range for a unicode codepoint"))?;
+
+            let ch = char::from_u32(codepoint)
+                .ok_or_else(|| format!("integer {i} is not a valid unicode codepoint"))?;
+
+            print!("{ch}");
+            Ok(())
+        }
+        other => Err(format!("cap_print_char expects Int, got {}", format_value(&other)).into()),
+    }
+}

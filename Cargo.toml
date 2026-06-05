@@ -2,7 +2,8 @@
 members = [
     "crates/lepton_opcodes",
     "crates/lepton_image",
-    "crates/lepton_vm"
+    "crates/lepton_vm",
+    "crates/lepton_std"
 ]
 
 resolver = "3"
@@ -13,3 +14,4 @@ hashbrown = "0.17.1"
 
 lepton_opcodes = { path = "./crates/lepton_opcodes" }
 lepton_image = { path = "./crates/lepton_image" }
+lepton_vm = { path = "./crates/lepton_vm" }

@@ -1216,14 +1216,15 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 // point back at the instruction that actually failed.
                 let instruction_offset = frame.instruction_pointer.saturating_sub(1);
 
-                // Ignore an invalid offset with source info lookup 
+                // Ignore an invalid offset with source info lookup
                 // to try still get as good debug info as we can
-                let Ok(abs_offset) = u32::try_from(frame.instruction_base + instruction_offset) else {
+                let Ok(abs_offset) = u32::try_from(frame.instruction_base + instruction_offset)
+                else {
                     return StackTraceFrame {
                         function_idx: frame.function_idx,
                         instruction_offset,
                         source_location: None,
-                    }
+                    };
                 };
 
                 // Resolve the source location if debug info is attached
@@ -1243,14 +1244,11 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
     /// by searching the debug info table
     ///
     /// Returns `None` if no location covers the given offset.
-    fn resolve_source_location(
-        &self,
-        abs_offset: u32,
-    ) -> Option<SourceLocation> {
+    fn resolve_source_location(&self, abs_offset: u32) -> Option<SourceLocation> {
         let Some(debug_info) = &self.image.debug_info else {
-            return None
+            return None;
         };
-    
+
         // Find the closest location which covers this instruction
         let idx = debug_info
             .locations

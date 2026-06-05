@@ -7,7 +7,7 @@
 //!
 //! ## Lepton3 Opcodes
 //!
-//! The `lepton3_opcodes` crate provides the set of operations
+//! The `lepton_opcodes` crate provides the set of operations
 //! and their opcodes for execution in the VM.
 //!
 //! ## Instruction Format
@@ -16,9 +16,9 @@
 //! except for the three Push instructions which carry their constant value
 //! inline:
 //!
-//!   [ PushInt;   1 byte ][ value; 8 bytes ]
-//!   [ PushFloat; 1 byte ][ value; 8 bytes ]
-//!   [ PushBool;  1 byte ][ value; 1 byte  ]
+//!   [ `PushInt`;   1 byte ][ value; 8 bytes ]
+//!   [ `PushFloat`; 1 byte ][ value; 8 bytes ]
+//!   [ `PushBool`;  1 byte ][ value; 1 byte  ]
 //!
 //! All other instructions pop their arguments from the stack for uniformity.
 
@@ -69,11 +69,11 @@ opcode_enum! {
     // Stack based operations 0x0
 
     /// Pushes an integer constant onto the stack.
-    /// [ PushInt; 1 byte ][ value; 8 bytes ]
+    /// [ `PushInt`; 1 byte ][ value; 8 bytes ]
     PushInt = (0x00, 8),
 
     /// Pushes a boolean constant onto the stack.
-    /// [ PushBool; 1 byte ][ value; 1 byte ]
+    /// [ `PushBool`; 1 byte ][ value; 1 byte ]
     PushBool = (0x01, 1),
 
     /// Pushes a UNIT () onto the stack.
@@ -89,7 +89,7 @@ opcode_enum! {
     Swap = (0x05, 0),
 
     /// Pushes a floating point constant onto the stack.
-    /// [ PushFloat; 1 byte ][ value; 8 bytes ]
+    /// [ `PushFloat`; 1 byte ][ value; 8 bytes ]
     PushFloat = (0x06, 8),
 
     // Integer Arithmetic 0x1
