@@ -20,6 +20,5 @@ lepton_opcodes = { workspace = true }
 lepton_image = { workspace = true }
 
 [features]
-default = ["tagger_bump_gen", "heap_allocator_cheney"]
 tagger_bump_gen = []
 heap_allocator_cheney = []

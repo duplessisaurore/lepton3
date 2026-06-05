@@ -38,6 +38,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lepton3"
+version = "0.1.0"
+dependencies = [
+ "lepton_image",
+ "lepton_opcodes",
+ "lepton_vm",
+]
+
+[[package]]
 name = "lepton_image"
 version = "0.1.0"
 dependencies = [

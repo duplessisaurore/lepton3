@@ -1,12 +1,28 @@
+[package]
+name = "lepton3"
+version = "0.1.0"
+edition = "2024"
+authors = ["The Lepton3 Contributors"]
+
+description = "A bytecode virtual machine for embedded systems"
+readme = "README.md"
+
+repository = "https://github.com/duplessisaurore/lepton3"
+license = "AGPLv3"
+
+keywords = ["languages", "scripting", "script"]
+
 [workspace]
 members = [
-    "crates/lepton_opcodes",
-    "crates/lepton_image",
-    "crates/lepton_vm",
-    "crates/lepton_std"
+    "crates/*"
 ]
 
 resolver = "3"
+
+[dependencies]
+lepton_image = { workspace = true }
+lepton_opcodes = { workspace = true }
+lepton_vm = { workspace = true }
 
 [workspace.dependencies]
 cfg-if = "1.0.4"
@@ -15,3 +31,8 @@ hashbrown = "0.17.1"
 lepton_opcodes = { path = "./crates/lepton_opcodes" }
 lepton_image = { path = "./crates/lepton_image" }
 lepton_vm = { path = "./crates/lepton_vm" }
+
+[features]
+default = ["tagger_bump_gen", "heap_allocator_cheney"]
+tagger_bump_gen = ["lepton_vm/tagger_bump_gen"]
+heap_allocator_cheney = ["lepton_vm/heap_allocator_cheney"]
