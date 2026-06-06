@@ -125,7 +125,7 @@ pub fn write(image: &Image) -> Result<Vec<u8>, WriteError> {
 fn write_header(w: &mut Writer, image: &Image) {
     w.write_bytes(b"LEPTON3");
     w.write_u8(image.header.version_major);
-    w.write_u16(image.header.flags);
+    w.write_u16(image.header.flags.to_raw());
     w.write_u32(image.header.entry_point);
 }
 
