@@ -13,5 +13,5 @@ license = "AGPLv3"
 keywords = ["languages", "scripting", "script"]
 
 [dependencies]
-lepton_vm = { workspace = true }
+lepton_vm = { workspace = true, features = ["heap_allocator_cheney", "tagger_bump_gen"] }
 lepton_image = { workspace = true }
