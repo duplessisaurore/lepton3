@@ -141,9 +141,6 @@ pub struct VirtualMachine<H: HeapAllocator = HeapAllocatorImpl, T: TagGenerator 
 
     // Pre-allocated well-known type tags.
     type_tags: TypeTags,
-
-    /// Error margin permitted for f64 comparison
-    error_margin: f64,
 }
 
 /// One record for the call of a function
@@ -177,7 +174,6 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         capabilities: Vec<CapabilityFn<H, T>>,
         heap: H,
         mut tagger: T,
-        error_margin: f64,
     ) -> Self {
         Self {
             image,
@@ -188,7 +184,6 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             capabilities,
             call_stack: Vec::new(),
             error_handlers: Vec::new(),
-            error_margin,
         }
     }
 
@@ -416,12 +411,12 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Opcode::ShiftL => {
                 let (a, b) = self.pop2_int()?;
                 let rhs = u32::try_from(b).map_err(|_| VmError::ShiftRHSTooLarge(b))?;
-                self.stack.push(Value::Int(a.wrapping_shl(rhs)));
+                self.stack.push(Value::Int(a.unbounded_shl(rhs)));
             }
             Opcode::ShiftR => {
                 let (a, b) = self.pop2_int()?;
                 let rhs = u32::try_from(b).map_err(|_| VmError::ShiftRHSTooLarge(b))?;
-                self.stack.push(Value::Int(a.wrapping_shr(rhs)));
+                self.stack.push(Value::Int(a.unbounded_shr(rhs)));
             }
             Opcode::And => {
                 let (a, b) = self.pop2_int()?;
@@ -939,12 +934,12 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Opcode::FEqual => {
                 let (a, b) = self.pop2_float()?;
                 self.stack
-                    .push(Value::Bool((a - b).abs() < self.error_margin));
+                    .push(Value::Bool(a == b));
             }
             Opcode::FNotEqual => {
                 let (a, b) = self.pop2_float()?;
                 self.stack
-                    .push(Value::Bool((a - b).abs() > self.error_margin));
+                    .push(Value::Bool(a == b));
             }
             Opcode::FLessThan => {
                 let (a, b) = self.pop2_float()?;

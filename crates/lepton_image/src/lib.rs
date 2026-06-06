@@ -27,7 +27,7 @@
 //!    `field_count`:          u32        // number of fields of the object
 //!
 //! [ FUNCTION TABLE ]
-//!  `count`:                  u32
+//!  `count`:                  u32        // total number of functions
 //!  for each function:
 //!    `arg_count`:            u32        // number of arguments to pass to the function
 //!    `local_count`:          u32        // the maximum number of locals in this function
