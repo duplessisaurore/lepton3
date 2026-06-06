@@ -935,13 +935,11 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             // = Floating point comparison 0xC =
             Opcode::FEqual => {
                 let (a, b) = self.pop2_float()?;
-                self.stack
-                    .push(Value::Bool(a == b));
+                self.stack.push(Value::Bool(a == b));
             }
             Opcode::FNotEqual => {
                 let (a, b) = self.pop2_float()?;
-                self.stack
-                    .push(Value::Bool(a == b));
+                self.stack.push(Value::Bool(a == b));
             }
             Opcode::FLessThan => {
                 let (a, b) = self.pop2_float()?;

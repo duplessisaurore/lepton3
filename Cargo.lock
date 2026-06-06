@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "lepton3"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "lepton_image",
  "lepton_opcodes",
@@ -48,7 +48,7 @@ dependencies = [
 
 [[package]]
 name = "lepton_image"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hashbrown",
  "lepton_opcodes",
@@ -56,11 +56,11 @@ dependencies = [
 
 [[package]]
 name = "lepton_opcodes"
-version = "0.1.0"
+version = "1.0.0"
 
 [[package]]
 name = "lepton_std"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "lepton_image",
  "lepton_vm",
@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "lepton_vm"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "cfg-if",
  "hashbrown",

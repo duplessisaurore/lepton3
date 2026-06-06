@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         image,
         capabilities::all(),
         HeapAllocatorImpl::default(),
-        TagGeneratorImpl::default()
+        TagGeneratorImpl::default(),
     );
 
     // Run the virtual machine
