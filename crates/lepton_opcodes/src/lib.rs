@@ -40,6 +40,7 @@
 macro_rules! opcode_enum {
     ($($(#[$attr:meta])* $name:ident = ($val:expr, $args:expr)),* $(,)?) => {
         #[repr(u8)]
+        #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
         pub enum Opcode {
             $($(#[$attr])* $name = $val),*
         }
