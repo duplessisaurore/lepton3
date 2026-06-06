@@ -28,7 +28,7 @@ mod capabilities;
 fn main() -> Result<(), Box<dyn Error>> {
     // Should be a path to a simple lepton3 binary file
     let path = std::env::args().nth(1).unwrap_or_else(|| {
-        eprintln!("usage: lepton_std <image.lp3>");
+        eprintln!("usage: {} <image.lp3>", std::env::args().nth(0).unwrap());
         process::exit(1);
     });
 
@@ -50,6 +50,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         process::exit(1);
     });
 
+    // Clone the debug info file name
+    // so we can keep the file names around for error debugging
+    let debug_files = image.debug_info.as_ref().map(|debug| debug.files.clone());
+
     // Create the virtual machine for execution
     let mut vm = VirtualMachine::new(
         image,
@@ -69,10 +73,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             // Print out each stack trace frame
             for frame in &trace {
                 match &frame.source_location {
-                    Some(loc) => eprintln!(
-                        "  fn[{}] file_id={} {}:{}",
-                        frame.function_idx, loc.file, loc.line, loc.column
-                    ),
+                    Some(loc) => {
+                        // Look up file name in debug info for source printing
+                        let file_name = debug_files
+                            .as_ref()
+                            .and_then(|files| files.get(loc.file as usize))
+                            .map(|s| s.as_str())
+                            .unwrap_or("<unknown file>");
+
+                        eprintln!(
+                            "  fn[{}] {} {}:{}",
+                            frame.function_idx, file_name, loc.line, loc.column
+                        );
+                    }
                     None => eprintln!(
                         "  fn[{}] <no debug info> offset {}",
                         frame.function_idx, frame.instruction_offset
