@@ -7,7 +7,7 @@
   <strong>Object-based Bytecode VM</strong>
 </div>
 <div align="center">
-  A bytecode virtual machine for embedded systems 
+  A bytecode virtual machine for the <code>Fermion3</code> language.
 </div>
 
 
