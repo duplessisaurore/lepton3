@@ -881,6 +881,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 self.error_handlers.pop().ok_or(VmError::UnhandledEndTry)?;
             }
             Opcode::Raise => {
+                let error_value = self.pop()?;
                 let handler = self.error_handlers.pop().ok_or(VmError::UnhandledRaise)?;
 
                 // Unwind the call stack back to where Try was registered,
@@ -896,6 +897,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                     f.locals_base + f.local_count
                 };
                 self.stack.truncate(locals_top);
+                self.stack.push(error_value);
 
                 // Jump into the handler, we need to reset the instruction base and stuff
                 // into when it was registered to be correct.

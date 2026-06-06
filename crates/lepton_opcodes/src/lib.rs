@@ -284,11 +284,11 @@ opcode_enum! {
     /// Pops two floats and pushes their quotient.
     FDiv = (0xB4, 0),
 
-    /// Pops a float and pushes its negation.
-    FNeg = (0xB5, 0),
-
     /// Pops two floats and pushes their remainder.
-    FMod = (0xB6, 0),
+    FMod = (0xB5, 0),
+
+    /// Pops a float and pushes its negation.
+    FNeg = (0xB6, 0),
 
     // Floating Point Comparison 0xC
 
