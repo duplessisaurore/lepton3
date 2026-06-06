@@ -63,6 +63,9 @@ extern crate alloc;
 /// Rust structs
 pub mod format;
 
+/// Flags in the image format for Lepton3
+pub mod flags;
+
 /// Parses the image from raw bytes into the format
 #[cfg(feature = "parser")]
 pub mod parser;

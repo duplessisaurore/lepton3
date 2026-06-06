@@ -3,7 +3,10 @@
 
 use alloc::{string::String, vec::Vec};
 
-use crate::format::{DebugInfo, Function, Header, Image, ObjectType, SourceLocation};
+use crate::{
+    flags::ImageFlags,
+    format::{DebugInfo, Function, Header, Image, ObjectType, SourceLocation},
+};
 
 /// Errors that can occur during parsing
 #[derive(Debug)]
@@ -101,7 +104,7 @@ pub fn parse(bytes: &[u8]) -> Result<Image, ParseError> {
     let instructions = parse_instructions(&mut r)?;
 
     // Parse debug info if header flag is set
-    let debug_info = if header.flags & 0x0001 != 0 {
+    let debug_info = if header.flags.has(ImageFlags::DEBUG_INFO) {
         Some(parse_debug_info(&mut r)?)
     } else {
         None
@@ -130,7 +133,7 @@ fn parse_header(r: &mut Reader) -> Result<Header, ParseError> {
 
     Ok(Header {
         version_major,
-        flags,
+        flags: ImageFlags::from_raw(flags),
         entry_point,
     })
 }

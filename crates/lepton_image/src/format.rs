@@ -3,6 +3,8 @@
 
 use alloc::{string::String, vec::Vec};
 
+use crate::flags::ImageFlags;
+
 /// A const function that lets us parse some string
 /// into a u8 at compile time.
 const fn parse_u8(s: &str) -> u8 {
@@ -38,7 +40,7 @@ pub struct Image {
 /// Image header
 pub struct Header {
     pub version_major: u8,
-    pub flags: u16,
+    pub flags: ImageFlags,
     pub entry_point: u32,
 }
 
