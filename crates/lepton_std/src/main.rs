@@ -28,7 +28,7 @@ mod capabilities;
 fn main() -> Result<(), Box<dyn Error>> {
     // Should be a path to a simple lepton3 binary file
     let path = std::env::args().nth(1).unwrap_or_else(|| {
-        eprintln!("usage: lepton_std <image.lep>");
+        eprintln!("usage: lepton_std <image.lp3>");
         process::exit(1);
     });
 
