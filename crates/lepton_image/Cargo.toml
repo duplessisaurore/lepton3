@@ -19,7 +19,6 @@ hashbrown = { workspace = true }
 [features]
 default = ["parser", "validator", "writer"]
 
-# Big Integer support options
 parser = []
 validator = []
 writer = []
