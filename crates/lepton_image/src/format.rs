@@ -5,6 +5,9 @@ use alloc::{string::String, vec::Vec};
 
 use crate::flags::ImageFlags;
 
+/// The magic bytes expected at the beginning of a Lepton3 image
+pub const MAGIC: &[u8] = b"LEPTON3";
+
 /// A const function that lets us parse some string
 /// into a u8 at compile time.
 const fn parse_u8(s: &str) -> u8 {

@@ -3,7 +3,7 @@
 
 use alloc::vec::Vec;
 
-use crate::format::{DebugInfo, Function, Image, ObjectType};
+use crate::format::{DebugInfo, Function, Image, MAGIC, ObjectType};
 
 use core::num::TryFromIntError;
 
@@ -123,7 +123,7 @@ pub fn write(image: &Image) -> Result<Vec<u8>, WriteError> {
 
 // Writes the magic and then all the image header fields out
 fn write_header(w: &mut Writer, image: &Image) {
-    w.write_bytes(b"LEPTON3");
+    w.write_bytes(MAGIC);
     w.write_u8(image.header.version_major);
     w.write_u16(image.header.flags.to_raw());
     w.write_u32(image.header.entry_point);

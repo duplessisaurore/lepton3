@@ -5,7 +5,7 @@ use alloc::{string::String, vec::Vec};
 
 use crate::{
     flags::ImageFlags,
-    format::{DebugInfo, Function, Header, Image, ObjectType, SourceLocation},
+    format::{DebugInfo, Function, Header, Image, MAGIC, ObjectType, SourceLocation},
 };
 
 /// Errors that can occur during parsing
@@ -123,7 +123,7 @@ pub fn parse(bytes: &[u8]) -> Result<Image, ParseError> {
 fn parse_header(r: &mut Reader) -> Result<Header, ParseError> {
     // Expect the magic bytes at the start
     let magic = r.read_bytes(7)?;
-    if magic != b"LEPTON3" {
+    if magic != MAGIC {
         return Err(ParseError::InvalidMagic);
     }
 
