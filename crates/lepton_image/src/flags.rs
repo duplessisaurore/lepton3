@@ -9,14 +9,17 @@ impl ImageFlags {
     /// be parsed in the image.
     pub const DEBUG_INFO: u16 = 0x0001;
 
+    #[must_use]
     pub fn from_raw(raw: u16) -> Self {
         Self(raw)
     }
 
+    #[must_use]
     pub fn to_raw(self) -> u16 {
         self.0
     }
 
+    #[must_use]
     pub fn has(self, flag: u16) -> bool {
         self.0 & flag != 0
     }
