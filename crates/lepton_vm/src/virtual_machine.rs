@@ -350,6 +350,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 let v = self.fetch_i64()?;
                 self.stack.push(Value::Int(v));
             }
+            #[cfg(feature = "floats")]
             Opcode::PushFloat => {
                 let v = self.fetch_f64()?;
                 self.stack.push(Value::Float(v));
@@ -907,62 +908,76 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             }
 
             // = Floating point arithmetic 0xB =
+            #[cfg(feature = "floats")]
             Opcode::FAdd => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Float(a + b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FSub => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Float(a - b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FMul => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Float(a * b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FDiv => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Float(a / b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FNeg => {
                 let a = self.pop_float()?;
                 self.stack.push(Value::Float(-a));
             }
+            #[cfg(feature = "floats")]
             Opcode::FMod => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Float(a % b));
             }
 
             // = Floating point comparison 0xC =
+            #[cfg(feature = "floats")]
             Opcode::FEqual => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Bool(a == b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FNotEqual => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Bool(a == b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FLessThan => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Bool(a < b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FLessThanEq => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Bool(a <= b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FGreaterThan => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Bool(a > b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FGreaterThanEq => {
                 let (a, b) = self.pop2_float()?;
                 self.stack.push(Value::Bool(a >= b));
             }
+            #[cfg(feature = "floats")]
             Opcode::FIsNaN => {
                 let a = self.pop_float()?;
                 self.stack.push(Value::Bool(a.is_nan()));
             }
 
             // = Type conversion 0xD =
+            #[cfg(feature = "floats")]
             Opcode::IntToFloat => {
                 let i = self.pop_int()?;
 
@@ -970,6 +985,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 #[allow(clippy::cast_precision_loss)]
                 self.stack.push(Value::Float(i as f64));
             }
+            #[cfg(feature = "floats")]
             Opcode::FloatToInt => {
                 let f = self.pop_float()?;
 
@@ -1054,6 +1070,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
     }
 
     /// Expect a little-endian `f64` from the instruction stream.
+    #[cfg(feature = "floats")]
     fn fetch_f64(&mut self) -> Result<f64, VmError> {
         let mut buf = [0u8; 8];
         for b in &mut buf {
@@ -1107,6 +1124,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
     }
 
     /// Expects a float at the top of the stack and pops it off
+    #[cfg(feature = "floats")]
     fn pop_float(&mut self) -> Result<f64, VmError> {
         match self.pop()? {
             Value::Float(f) => Ok(f),
@@ -1175,6 +1193,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
     }
 
     /// Expects two floats at the top of the stack and pops them off
+    #[cfg(feature = "floats")]
     fn pop2_float(&mut self) -> Result<(f64, f64), VmError> {
         let b = self.pop_float()?;
         let a = self.pop_float()?;

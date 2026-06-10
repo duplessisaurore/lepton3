@@ -33,6 +33,7 @@ lepton_image = { path = "./crates/lepton_image" }
 lepton_vm = { path = "./crates/lepton_vm" }
 
 [features]
-default = ["tagger_bump_gen", "heap_allocator_cheney"]
+default = ["tagger_bump_gen", "heap_allocator_cheney", "floats"]
 tagger_bump_gen = ["lepton_vm/tagger_bump_gen"]
 heap_allocator_cheney = ["lepton_vm/heap_allocator_cheney"]
+floats = ["lepton_opcodes/floats", "lepton_vm/floats"]

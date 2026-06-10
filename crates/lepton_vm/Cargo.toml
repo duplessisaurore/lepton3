@@ -22,3 +22,4 @@ lepton_image = { workspace = true }
 [features]
 tagger_bump_gen = []
 heap_allocator_cheney = []
+floats = []

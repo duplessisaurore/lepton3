@@ -47,8 +47,9 @@ macro_rules! opcode_enum {
 
         impl Opcode {
             pub fn operand_size(&self) -> u8 {
+                #[allow(unused_doc_comments)]
                 match self {
-                    $(Self::$name => $args,)*
+                    $($(#[$attr])* Self::$name => $args,)*
                 }
             }
         }
@@ -57,8 +58,9 @@ macro_rules! opcode_enum {
             type Error = u8;
 
             fn try_from(value: u8) -> Result<Self, Self::Error> {
+                #[allow(unused_doc_comments)]
                 match value {
-                    $($val => Ok(Self::$name),)*
+                    $($(#[$attr])* $val => Ok(Self::$name),)*
                     _ => Err(value),
                 }
             }
@@ -91,6 +93,7 @@ opcode_enum! {
 
     /// Pushes a floating point constant onto the stack.
     /// [ `PushFloat`; 1 byte ][ value; 8 bytes ]
+    #[cfg(feature = "floats")]
     PushFloat = (0x06, 8),
 
     // Integer Arithmetic 0x1
@@ -274,44 +277,57 @@ opcode_enum! {
     // Floating Point Operations 0xB
 
     /// Pops two floats and pushes their sum.
+    #[cfg(feature = "floats")]
     FAdd = (0xB1, 0),
 
     /// Pops two floats and pushes their difference.
+    #[cfg(feature = "floats")]
     FSub = (0xB2, 0),
 
     /// Pops two floats and pushes their product.
+    #[cfg(feature = "floats")]
     FMul = (0xB3, 0),
 
     /// Pops two floats and pushes their quotient.
+    #[cfg(feature = "floats")]
     FDiv = (0xB4, 0),
 
     /// Pops two floats and pushes their remainder.
+    #[cfg(feature = "floats")]
     FMod = (0xB5, 0),
 
     /// Pops a float and pushes its negation.
+    #[cfg(feature = "floats")]
     FNeg = (0xB6, 0),
 
     // Floating Point Comparison 0xC
 
     /// Pops two floats and pushes whether they are equal.
+    #[cfg(feature = "floats")]
     FEqual = (0xC1, 0),
 
     /// Pops two floats and pushes whether they are not equal.
+    #[cfg(feature = "floats")]
     FNotEqual = (0xC2, 0),
 
     /// Pops two floats and pushes whether the first is less than the second.
+    #[cfg(feature = "floats")]
     FLessThan = (0xC3, 0),
 
     /// Pops two floats and pushes whether the first is less than or equal to the second.
+    #[cfg(feature = "floats")]
     FLessThanEq = (0xC4, 0),
 
     /// Pops two floats and pushes whether the first is greater than the second.
+    #[cfg(feature = "floats")]
     FGreaterThan = (0xC5, 0),
 
     /// Pops two floats and pushes whether the first is greater than or equal to the second.
+    #[cfg(feature = "floats")]
     FGreaterThanEq = (0xC6, 0),
 
     /// Pops a float and pushes whether it is NaN.
+    #[cfg(feature = "floats")]
     FIsNaN = (0xC7, 0),
 
     // Type Conversion 0xD
@@ -319,9 +335,11 @@ opcode_enum! {
     /// Pops an integer and pushes it converted to a float.
     /// precision maybe lost as i64 is 64 bits wide, but f64
     /// is only 52 bits wide
+    #[cfg(feature = "floats")]
     IntToFloat = (0xD1, 0),
 
     /// Pops a float and pushes it converted to an integer by truncation.
+    #[cfg(feature = "floats")]
     FloatToInt = (0xD2, 0),
 
     /// Pushes a tag identifying the type of the value at the top of the stack.
