@@ -1,7 +1,7 @@
 //! The underlying rust representation of all the differing
 //! types of values operatable on in Lepton3
 
-use hashbrown::HashMap;
+use alloc::vec::Vec;
 
 use crate::tagger::TagGenerator;
 
@@ -55,12 +55,16 @@ pub struct TypeTags {
     pub tag: Tag,
     pub array: Tag,
 
-    /// We later dynamically map idx to tag on creation
-    pub object: HashMap<u64, Tag>,
+    // Mapping of object ids to their tags
+    pub object: Vec<Tag>,
 }
 
 impl TypeTags {
-    pub fn new(tagger: &mut impl TagGenerator) -> Self {
+    /// Creates a new set of type tags
+    ///
+    /// The objects vec must be a map of all possible objects
+    /// to their tag for later lookup
+    pub fn new(tagger: &mut impl TagGenerator, obj_tags: Vec<Tag>) -> Self {
         Self {
             unit: tagger.allocate_tag(),
             int: tagger.allocate_tag(),
@@ -68,7 +72,7 @@ impl TypeTags {
             boolean: tagger.allocate_tag(),
             tag: tagger.allocate_tag(),
             array: tagger.allocate_tag(),
-            object: HashMap::new(),
+            object: obj_tags,
         }
     }
 }

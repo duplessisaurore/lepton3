@@ -6,7 +6,6 @@
 use core::error::Error;
 
 use alloc::{boxed::Box, vec::Vec};
-use hashbrown::hash_map::Entry;
 use lepton_image::format::{Image, SourceLocation};
 use lepton_opcodes::Opcode;
 
@@ -14,7 +13,7 @@ use crate::{
     capabilities::CapabilityFn,
     heap_allocator::{HeapAllocator, HeapAllocatorImpl, HeapItem},
     tagger::{TagGenerator, TagGeneratorImpl},
-    values::{TypeTags, Value},
+    values::{Tag, TypeTags, Value},
 };
 
 /// Every way execution can error.
@@ -175,15 +174,21 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         heap: H,
         mut tagger: T,
     ) -> Self {
+        // Preallocate all object tags so we don't waste time during
+        // execution having to consider making a tag or not.
+        let obj_tags: Vec<Tag> = (0..image.object_table.len())
+            .map(|_| tagger.allocate_tag())
+            .collect();
+
         Self {
-            image,
             stack: Vec::new(),
             heap,
-            type_tags: TypeTags::new(&mut tagger),
+            type_tags: TypeTags::new(&mut tagger, obj_tags),
             tagger,
             capabilities,
             call_stack: Vec::new(),
             error_handlers: Vec::new(),
+            image,
         }
     }
 
@@ -761,10 +766,9 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 fields.reverse();
 
                 // Get the unique tag associated with this object type.
-                let tag = match self.type_tags.object.entry(type_idx as u64) {
-                    Entry::Occupied(occupied_entry) => *occupied_entry.get(),
-                    Entry::Vacant(vacant_entry) => *vacant_entry.insert(self.tagger.allocate_tag()),
-                };
+                //
+                // This is preallocated on the start of the VM
+                let tag = self.type_tags.object[type_idx];
 
                 // Allocate in the heap
                 let idx = self.heap.alloc_raw(HeapItem::Object { tag, fields });
