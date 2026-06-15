@@ -85,8 +85,8 @@ impl CheneyAllocator {
         // Because heap values and arrays can refer to other heap items
         // we need to bring them over into our new `to_space`
         //
-        // so while we havent scanned the entire `to_space`, keep scanning
-        // for any internal fields we may have missed.
+        // so while we havent scanned the entire `to_space`'s values internal
+        // fields referenced items, keep scanning for any references we may have missed.
         let mut scan_idx = 0;
         while scan_idx < self.to_space.len() {
             // pull the item temporarily out of the `to_space``

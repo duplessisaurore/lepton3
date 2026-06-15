@@ -1,3 +1,6 @@
+//! A set of capabilities provided to the standard VM execution
+//! binary, this provides just the basic stuff for outputting
+
 use lepton_vm::{
     capabilities::CapabilityFn, heap_allocator::HeapAllocatorImpl, tagger::TagGeneratorImpl,
     values::Value,
@@ -38,6 +41,8 @@ fn format_value(value: &Value) -> String {
 /// Capability 1: pops an integer from the stack and prints it
 /// as a unicode character.
 ///
+/// # Errors
+/// 
 /// Returns an error if the integer is not a valid unicode codepoint
 /// or if the value is not an integer.
 fn cap_print_char(

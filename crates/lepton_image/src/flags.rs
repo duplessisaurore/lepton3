@@ -5,8 +5,8 @@
 pub struct ImageFlags(u16);
 
 impl ImageFlags {
-    /// This image carries debug info which should
-    /// be parsed in the image.
+    /// This image carries the debug info table
+    /// which should be parsed in the image.
     pub const DEBUG_INFO: u16 = 0x0001;
 
     #[must_use]
@@ -19,15 +19,18 @@ impl ImageFlags {
         self.0
     }
 
+    /// Check if the image has a flag
     #[must_use]
     pub fn has(self, flag: u16) -> bool {
         self.0 & flag != 0
     }
 
+    /// Set a flag to true on the image
     pub fn set(&mut self, flag: u16) {
         self.0 |= flag;
     }
 
+    /// Clear a flag/set a flag to false on the image
     pub fn clear(&mut self, flag: u16) {
         self.0 &= !flag;
     }
