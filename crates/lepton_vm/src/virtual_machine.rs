@@ -511,10 +511,6 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                     .ok_or(VmError::InvalidFunction(func_idx))?;
                 let arg_count = func.arg_count as usize;
 
-                // Ensure GC roots are updated before we shuffle the stack.
-                // for locals and arg passing
-                self.gc_collect();
-
                 self.call_function(func_idx, arg_count)?;
             }
             Opcode::Return => {
@@ -552,10 +548,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             }
             Opcode::TailCall => {
                 let func_idx = self.pop_index()?;
-
-                // GC before touching the stack, same as Call.
-                self.gc_collect();
-
+                
                 // Tail call the function at the index.
                 self.tail_call_function(func_idx)?;
             }
