@@ -26,7 +26,7 @@ pub enum VmError {
     /// passed as an index
     InvalidIndex(i64),
 
-    /// An opcode byte that is not a valid Opcode.
+    /// An opcode byte that is not a valid `Opcode`.
     UnknownOpcode(u8),
 
     /// An instruction tried to pop more values than currently in the stack.
@@ -582,6 +582,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 self.stack.push(Value::Array(idx));
             }
             Opcode::ArrayCons => {
+                self.gc_collect();
                 let value = self.pop()?;
                 let arr_idx = self.pop_array()?;
 
@@ -621,6 +622,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 self.stack.push(head);
             }
             Opcode::ArrayTail => {
+                self.gc_collect();
                 let arr_idx = self.pop_array()?;
 
                 // Get all of the elements after the first and clone
@@ -683,29 +685,10 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 self.stack.push(elem);
             }
             Opcode::ArrayAppend => {
-                // To prevent root corrutpion bug we gc before
-                // popping both arrays, we cant use pop_array since it may
-                // cause b_idx to be an invalid pointer if a_idx triggers GC.
                 self.gc_collect();
 
-                let b_idx = match self.pop()? {
-                    Value::Array(idx) => idx,
-                    other => {
-                        return Err(VmError::TypeError {
-                            expected: "Array",
-                            got: value_type_name(&other),
-                        });
-                    }
-                };
-                let a_idx = match self.pop()? {
-                    Value::Array(idx) => idx,
-                    other => {
-                        return Err(VmError::TypeError {
-                            expected: "Array",
-                            got: value_type_name(&other),
-                        });
-                    }
-                };
+                let b_idx = self.pop_array()?;
+                let a_idx = self.pop_array()?;
 
                 // Get both the array from a and b and combine them
                 let mut combined = match &self.heap.get_item(a_idx) {
@@ -736,6 +719,8 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
 
             // = Object operations 0x7 =
             Opcode::ObjectNew => {
+                self.gc_collect();
+
                 // The type index comes first to get the number of fields
                 // to pop
                 let type_idx = self.pop_index()?;
@@ -747,9 +732,6 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                     .get(type_idx)
                     .ok_or(VmError::InvalidFunction(type_idx))?
                     .field_count as usize;
-
-                // Collect now to prevent the root corruption bug with fields
-                self.gc_collect();
 
                 // Pop all the fields from the stack
                 let mut fields: Vec<Value> = Vec::with_capacity(field_count);
@@ -1145,9 +1127,6 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
 
     /// Expects an array at the top of the stack and pops it off
     fn pop_array(&mut self) -> Result<usize, VmError> {
-        // Garbage collect to prevent the root corruption bug
-        self.gc_collect();
-
         match self.pop()? {
             Value::Array(idx) => Ok(idx),
             other => Err(VmError::TypeError {
@@ -1159,9 +1138,6 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
 
     /// Expects an object at the top of the stack and pops it off
     fn pop_object(&mut self) -> Result<usize, VmError> {
-        // Garbage collect to prevent the root corruption bug
-        self.gc_collect();
-
         match self.pop()? {
             Value::Object(idx) => Ok(idx),
             other => Err(VmError::TypeError {
