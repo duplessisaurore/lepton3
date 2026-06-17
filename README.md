@@ -112,9 +112,7 @@ The virtual machine will then begin execution at the function specified by the `
 
 `Array` and `Object` are reference types. The stack holds a reference to a heap-allocated value. Instructions such as `Duplicate`, `Load`, `ArrayNth` and `ObjectGet` will copy the reference, not the underlying heap data.
 
-`Array` is an immutable reference type. Operations that modify an array always produce a new cloned array and existing references are unaffected. 
-
-`Object` is a mutable reference type. `ObjectSet` mutates the object in place, and all references to that object will observe the change.
+`Object` and `Array` are mutable reference types. `ObjectSet`/`ArraySet` mutates the object/array in place, and all references to that object/array will observe the change.
 
 Heap-allocated values are garbage collected in `Lepton3` and values maybe moved or compacted transparently.
 
@@ -1044,6 +1042,30 @@ The instruction format is as follows:
 
 ```
 [ `ArrayAppend`; 1 byte ]
+```
+
+## ArraySet (0x72)
+
+Pops a value, then an `Int` array index, then an `Array`, updates that index in place in the array, and pushes the array back onto the stack.
+
+Aborts execution with an `OutOfBounds` error if the field index is out of range.
+
+The stack will be modified as follows:
+
+```
+[ ..., array, field_idx, value ]
+```
+
+Will become
+
+```
+[ ..., array ]
+```
+
+The instruction format is as follows:
+
+```
+[ `ArraySet`; 1 byte ]
 ```
 
 ## ObjectNew (0x71)

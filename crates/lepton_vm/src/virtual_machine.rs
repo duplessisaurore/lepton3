@@ -716,6 +716,31 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 let new_idx = self.heap.alloc_raw(HeapItem::Array(combined));
                 self.stack.push(Value::Array(new_idx));
             }
+            Opcode::ArraySet => {
+                // Pop the value, field and then array
+                let value = self.pop()?;
+                let field_idx = self.pop_index()?;
+                let arr_idx = self.pop_array()?;
+
+                // Modify the item
+                match self.heap.get_item_mut(arr_idx) {
+                    HeapItem::Array(values) => {
+                        let len = values.len();
+                        *values.get_mut(field_idx).ok_or(VmError::OutOfBounds {
+                            index: field_idx,
+                            len,
+                        })? = value;
+                    }
+                    _ => {
+                        return Err(VmError::OutOfBounds {
+                            index: arr_idx,
+                            len: 0,
+                        });
+                    }
+                }
+
+                self.stack.push(Value::Array(arr_idx));
+            }
 
             // = Object operations 0x7 =
             Opcode::ObjectNew => {

@@ -230,6 +230,10 @@ opcode_enum! {
     /// Pops two arrays and pushes their concatenation.
     ArrayAppend = (0x67, 0),
 
+    /// Pops a value, an integer array index and an array and pushes
+    /// a new array with that index updated to the new value in place
+    ArraySet = (0x68, 0),
+
     // Object Operations 0x7
 
     /// Pops an integer object type index and field values from the stack
