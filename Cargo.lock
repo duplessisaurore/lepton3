@@ -10,7 +10,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "lepton3"
-version = "1.4.0"
+version = "2.0.0"
 dependencies = [
  "lepton_image",
  "lepton_opcodes",
@@ -26,11 +26,11 @@ dependencies = [
 
 [[package]]
 name = "lepton_opcodes"
-version = "1.3.0"
+version = "2.0.0"
 
 [[package]]
 name = "lepton_std"
-version = "1.3.0"
+version = "2.0.0"
 dependencies = [
  "lepton_image",
  "lepton_vm",
@@ -38,7 +38,7 @@ dependencies = [
 
 [[package]]
 name = "lepton_vm"
-version = "1.3.0"
+version = "2.0.0"
 dependencies = [
  "cfg-if",
  "lepton_image",
