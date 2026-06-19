@@ -1,6 +1,6 @@
 [package]
 name = "lepton3"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2024"
 authors = ["The Lepton3 Contributors"]
 
@@ -25,8 +25,6 @@ lepton_opcodes = { workspace = true }
 lepton_vm = { workspace = true }
 
 [workspace.dependencies]
-cfg-if = "1.0.4"
-
 lepton_opcodes = { path = "./crates/lepton_opcodes" }
 lepton_image = { path = "./crates/lepton_image" }
 lepton_vm = { path = "./crates/lepton_vm" }

@@ -26,12 +26,14 @@ pub enum HeapItem {
     Forwarded(usize),
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "heap_allocator_cheney")] {
-        mod impl_cheney;
-        pub use impl_cheney::CheneyAllocator as HeapAllocatorImpl;
-    } else {
-        compile_error!("At least one heap allocator option must be chosen \
-                        for lepton_vm! Enable a `heap_allocator_` feature to pick one.");
-    }
-}
+#[cfg(feature = "heap_allocator_cheney")]
+mod impl_cheney;
+
+#[cfg(feature = "heap_allocator_cheney")]
+pub use impl_cheney::CheneyAllocator as HeapAllocatorImpl;
+
+#[cfg(not(any(feature = "tagger_bump_gen")))]
+compile_error!(
+    "At least one heap allocator option must be chosen \
+                for lepton_vm! Enable a `heap_allocator_` feature to pick one."
+);

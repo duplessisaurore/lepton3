@@ -18,11 +18,11 @@
 mod generator_trait;
 pub use generator_trait::TagGenerator;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "tagger_bump_gen")] {
-        mod impl_bump_gen;
-        pub use impl_bump_gen::TagBumpGenerator as TagGeneratorImpl;
-    } else {
-        compile_error!{"At least one tag generator option must be chosen for lepton_vm! enable a `tagger_` feature to pick one."}
-    }
-}
+#[cfg(feature = "tagger_bump_gen")]
+mod impl_bump_gen;
+
+#[cfg(feature = "tagger_bump_gen")]
+pub use impl_bump_gen::TagBumpGenerator as TagGeneratorImpl;
+
+#[cfg(not(any(feature = "tagger_bump_gen")))]
+compile_error! {"At least one tag generator option must be chosen for lepton_vm! enable a `tagger_` feature to pick one."}
