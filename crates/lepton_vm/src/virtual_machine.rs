@@ -291,6 +291,15 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         let new_local_count = func.local_count as usize;
         let new_instruction_base = func.instruction_offset as usize;
 
+        // New tail called function does not have enough arguments on the stack
+        // to give to function
+        if self.stack.len() < new_arg_count {
+            return Err(VmError::ArgumentCountMismatch {
+                expected: new_arg_count,
+                got: self.stack.len(),
+            });
+        }
+
         // Grab the new arguments off the top of the stack before truncating.
         let args_start = self.stack.len() - new_arg_count;
         let args: Vec<Value> = self.stack.drain(args_start..).collect();
@@ -439,11 +448,8 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 self.stack.push(Value::UInt(a.wrapping_rem(b)));
             }
             Opcode::Neg => {
-                let result = match self.pop_polymorphic_int()? {
-                    PolymorphicInt::Int(a) => Value::Int(a.wrapping_neg()),
-                    PolymorphicInt::UInt(a) => Value::UInt(a.wrapping_neg()),
-                };
-                self.stack.push(result);
+                let a = self.pop_int()?;
+                self.stack.push(Value::Int(a.wrapping_neg()));
             }
 
             // = Bitwise Operations 0x1 =
@@ -735,7 +741,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 // Push the length of the array as an i64 onto the stack
                 let len = match &self.heap.get_item(arr_idx) {
                     HeapItem::Array(v) => {
-                        i64::try_from(v.len()).map_err(|_| VmError::ValueTooLarge {
+                        u64::try_from(v.len()).map_err(|_| VmError::ValueTooLarge {
                             value_type: "Array",
                         })?
                     }
@@ -747,7 +753,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                     }
                 };
 
-                self.stack.push(Value::Int(len));
+                self.stack.push(Value::UInt(len));
             }
             Opcode::ArrayNth => {
                 let n = self.pop_index()?;
@@ -913,7 +919,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 let obj_idx = self.pop_object()?;
                 let len = match &self.heap.get_item(obj_idx) {
                     HeapItem::Object { fields, .. } => {
-                        i64::try_from(fields.len()).map_err(|_| VmError::ValueTooLarge {
+                        u64::try_from(fields.len()).map_err(|_| VmError::ValueTooLarge {
                             value_type: "Object",
                         })?
                     }
@@ -924,7 +930,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                         });
                     }
                 };
-                self.stack.push(Value::Int(len));
+                self.stack.push(Value::UInt(len));
             }
 
             // = Tag operations 0x8 =
@@ -1037,7 +1043,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             #[cfg(feature = "floats")]
             Opcode::FNotEqual => {
                 let (a, b) = self.pop2_float()?;
-                self.stack.push(Value::Bool(a == b));
+                self.stack.push(Value::Bool(a != b));
             }
             #[cfg(feature = "floats")]
             Opcode::FLessThan => {
