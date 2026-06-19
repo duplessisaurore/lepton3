@@ -82,7 +82,7 @@ The `Lepton3` virtual machine executes a `Lepton3` format image that contains al
 When running a `Lepton3` image, it is parsed which may lead to these errors:
 
 - The image is malformed and does not contain enough data that is expected.
-- The magic bytes do not match "Lepton3".
+- The magic bytes do not match "LEPTON3".
 - A string in the image is not valid UTF-8.
 
 The `Lepton3` image is then validated with some extra checks:
@@ -90,8 +90,8 @@ The `Lepton3` image is then validated with some extra checks:
 - The major version of the `Lepton3 Virtual Machine` and the image must match. 
 - The entry point must be in the bounds of the function table.
 - All function's instruction range must be in the instruction stream.
-- All function's `local_count` must be greater than its `arg_count`.
-- All debug info file indices must be in the bounds of the location table.
+- All function's `local_count` must be greater than or equal to its `arg_count`.
+- All debug info file indices must be in the bounds of the file table.
 - The location table should be sorted by instruction offset, this is important for mapping instructions back to source locations.
 
 The virtual machine will then begin execution at the function specified by the `entry_point` index into the function table.
@@ -101,6 +101,7 @@ The virtual machine will then begin execution at the function specified by the `
 `Lepton3` has the following value kinds on which the instructions manipulate:
 
 - `Int`: A 64-bit signed integer. 
+- `UInt`: A 64-bit unsigned integer.
 - `Float`: a 64-bit IEEE 754 floating point number.
 - `Unit`: the unit value (), representing the absence of a value.
 - `Tag`: a globally unique opaque identifier.
@@ -114,13 +115,24 @@ The virtual machine will then begin execution at the function specified by the `
 
 `Object` and `Array` are mutable reference types. `ObjectSet`/`ArraySet` mutates the object/array in place, and all references to that object/array will observe the change.
 
-Heap-allocated values are garbage collected in `Lepton3` and values maybe moved or compacted transparently.
+Heap-allocated values are garbage collected in `Lepton3` and values may be moved or compacted transparently.
 
 ## Instruction Set
 
 All instruction opcodes are `1` byte. They may have inline operands (only the `Push` instructions).
 
 The rest of the instructions receive their arguments from the stack. If a value is expected from the stack but no operand values are available, execution is aborted with a `StackUnderflow` error.
+
+For all instructions such as `Add` that interpret two operands as either `Int`/`UInt` both operands must have the same type.
+
+Mixed types are not allowed:
+
+```
+(Int, Int)  -> allowed
+(UInt, UInt) -> allowed
+(Int, UInt) -> type error
+(UInt, Int) -> type error
+```
 
 ### PushInt (0x00)
 
@@ -210,9 +222,21 @@ The instruction format is as follows:
 [ `PushFloat`; 1 byte ][ value; 8 bytes ]
 ```
 
+### PushUInt (0x07)
+
+This instruction pushes a constant `UInt` value onto the stack.
+
+The `PushUInt` instruction is an inline-operand instruction which carries both the `PushUInt` opcode and the constant value to push onto the stack.
+
+The instruction format is as follows:
+
+```
+[ `PushUInt`; 1 byte ][ value; 8 bytes ]
+```
+
 ## Add (0x10)
 
-Pops two `Int` values and pushes their sum. Uses wrapping arithmetic around the boundary of the `Int` type.
+Pops two `Int`/`UInt` values and pushes their sum. Uses wrapping arithmetic around the boundary of the `Int`/`UInt` type.
 
 The stack will be modified as follows:
 
@@ -234,7 +258,7 @@ The instruction format is as follows:
 
 ## Sub (0x11)
 
-Pops two `Int` values and pushes their difference. Uses wrapping arithmetic around the boundary of the `Int` type.
+Pops two `Int`/`UInt` values and pushes their difference. Uses wrapping arithmetic around the boundary of the `Int`/`UInt` type.
 
 The stack will be modified as follows:
 
@@ -256,7 +280,7 @@ The instruction format is as follows:
 
 ## Mul (0x12)
 
-Pops two `Int` values and pushes their product. Uses wrapping arithmetic around the boundary of the `Int` type.
+Pops two `Int`/`UInt` values and pushes their product. Uses wrapping arithmetic around the boundary of the `Int`/`UInt` type.
 
 The stack will be modified as follows:
 
@@ -282,6 +306,8 @@ Pops two `Int` values and pushes their integer quotient. Uses wrapping arithmeti
 
 Aborts execution with a `DivisionByZero` error if the divisor is `0`
 
+This is not compatible with `UInts` please see `UDiv`.
+
 The stack will be modified as follows:
 
 ```
@@ -306,6 +332,8 @@ Pops two `Int` values and pushes their remainder.
 
 Aborts execution with a `ModuloByZero` error if the divisor is `0`
 
+This is not compatible with `UInts` please see `UMod`.
+
 The stack will be modified as follows:
 
 ```
@@ -328,6 +356,8 @@ The instruction format is as follows:
 
 Pops one `Int` value and pushes its negation. Uses wrapping arithmetic around the boundary of the `Int` type.
 
+This is not compatible with `UInts`. If you really want to `Neg` it then convert it to an `Int` and then back.
+
 The stack will be modified as follows:
 
 ```
@@ -348,7 +378,7 @@ The instruction format is as follows:
 
 ## ShiftL (0x16)
 
-Pops two `Int` values and pushes the result of a left shift. Shift amounts >= 64 produce 0.
+Pops two `Int`/`UInt` values and pushes the result of a left shift. Shift amounts >= 64 produce 0.
 
 
 The right-hand side must be a non-negative value that fits in a u32, otherwise execution is aborted with a `ShiftRHSTooLarge` error. 
@@ -379,6 +409,8 @@ Pops two `Int` values and pushes the result of a right shift. Shift amounts >= 6
 
 The right-hand side must be a non-negative value that fits in a u32, otherwise execution is aborted with a `ShiftRHSTooLarge` error. 
 
+This is not compatible with `UInts` please see `UShiftR`.
+
 The stack will be modified as follows:
 
 ```
@@ -399,7 +431,7 @@ The instruction format is as follows:
 
 ## And (0x18)
 
-Pops two `Int` values and pushes their bitwise AND or `&`. 
+Pops two `Int`/`UInt` values and pushes their bitwise AND or `&`. 
 
 The stack will be modified as follows:
 
@@ -421,7 +453,7 @@ The instruction format is as follows:
 
 ## Or (0x19)
 
-Pops two `Int` values and pushes their bitwise OR or `|`. 
+Pops two `Int`/`UInt` values and pushes their bitwise OR or `|`. 
 
 The stack will be modified as follows:
 
@@ -443,7 +475,7 @@ The instruction format is as follows:
 
 ## Xor (0x1A)
 
-Pops two `Int` values and pushes their bitwise XOR or `⊕`. 
+Pops two `Int`/`UInt` values and pushes their bitwise XOR or `⊕`. 
 
 The stack will be modified as follows:
 
@@ -466,7 +498,7 @@ The instruction format is as follows:
 
 ## Not (0x1B)
 
-Pops one `Int` value and pushes its bitwise NOT. 
+Pops one `Int`/`UInt` value and pushes its bitwise NOT. 
 
 The stack will be modified as follows:
 
@@ -486,9 +518,88 @@ The instruction format is as follows:
 [ `Not`; 1 byte ]
 ```
 
+## UDiv (0x1C)
+
+Pops two `UInt` values and pushes their integer quotient. Uses wrapping arithmetic around the boundary of the `UInt` type.
+
+Aborts execution with a `DivisionByZero` error if the divisor is `0`
+
+This is not compatible with `Ints` please see `Div`.
+
+The stack will be modified as follows:
+
+```
+[ ..., a, b ]
+```
+
+Will become
+
+```
+[ ..., a / b ]
+```
+
+The instruction format is as follows:
+
+```
+[ `UDiv`; 1 byte ]
+```
+
+## UMod (0x1D)
+
+Pops two `UInt` values and pushes their remainder.
+
+Aborts execution with a `ModuloByZero` error if the divisor is `0`
+
+This is not compatible with `Ints` please see `Mod`.
+
+The stack will be modified as follows:
+
+```
+[ ..., a, b ]
+```
+
+Will become
+
+```
+[ ..., a % b ]
+```
+
+The instruction format is as follows:
+
+```
+[ `UMod`; 1 byte ]
+```
+
+## UShiftR (0x1E)
+
+Pops two `UInt` values and pushes the result of a right shift. Shift amounts >= 64 produce 0.
+
+
+The right-hand side must be a value that fits in a u32, otherwise execution is aborted with a `ShiftRHSTooLarge` error. 
+
+This is not compatible with `Ints` please see `ShiftR`.
+
+The stack will be modified as follows:
+
+```
+[ ..., a, b ]
+```
+
+Will become
+
+```
+[ ..., a >> b ]
+```
+
+The instruction format is as follows:
+
+```
+[ `UShiftR`; 1 byte ]
+```
+
 ## Equal (0x21)
 
-Pops two `Int` values and pushes a `Boolean` indicating whether they are equal.
+Pops two `Int`/`UInt` values and pushes a `Boolean` indicating whether they are equal.
 
 The stack will be modified as follows:
 
@@ -511,7 +622,7 @@ The instruction format is as follows:
 
 ## NotEqual (0x22)
 
-Pops two `Int` values and pushes a `Boolean` indicating whether they are not equal.
+Pops two `Int`/`UInt` values and pushes a `Boolean` indicating whether they are not equal.
 
 The stack will be modified as follows:
 
@@ -535,6 +646,8 @@ The instruction format is as follows:
 
 Pops two `Int` values and pushes a `Boolean` indicating whether the first is less than the second.
 
+This is not compatible with `UInts` please see `ULessThan`.
+
 The stack will be modified as follows:
 
 ```
@@ -556,6 +669,8 @@ The instruction format is as follows:
 ## LessThanEq (0x24)
 
 Pops two `Int` values and pushes a `Boolean` indicating whether the first is less than or equal the second.
+
+This is not compatible with `UInts` please see `ULessThanEq`.
 
 The stack will be modified as follows:
 
@@ -579,6 +694,8 @@ The instruction format is as follows:
 
 Pops two `Int` values and pushes a `Boolean` indicating whether the first is greater than the second.
 
+This is not compatible with `UInts` please see `UGreaterThan`.
+
 The stack will be modified as follows:
 
 ```
@@ -601,6 +718,8 @@ The instruction format is as follows:
 
 Pops two `Int` values and pushes a `Boolean` indicating whether the first is greater than or equal the second.
 
+This is not compatible with `UInts` please see `UGreaterThanEq`.
+
 The stack will be modified as follows:
 
 ```
@@ -617,6 +736,102 @@ The instruction format is as follows:
 
 ```
 [ `GreaterThanEq`; 1 byte ]
+```
+
+## ULessThan (0x27)
+
+Pops two `UInt` values and pushes a `Boolean` indicating whether the first is less than the second.
+
+This is not compatible with `Ints` please see `LessThan`.
+
+The stack will be modified as follows:
+
+```
+[ ..., a, b ]
+```
+
+Will become
+
+```
+[ ..., a < b ]
+```
+
+The instruction format is as follows:
+
+```
+[ `ULessThan`; 1 byte ]
+```
+
+## ULessThanEq (0x28)
+
+Pops two `UInt` values and pushes a `Boolean` indicating whether the first is less than or equal the second.
+
+This is not compatible with `Ints` please see `LessThanEq`.
+
+The stack will be modified as follows:
+
+```
+[ ..., a, b ]
+```
+
+Will become
+
+```
+[ ..., a <= b ]
+```
+
+The instruction format is as follows:
+
+```
+[ `ULessThanEq`; 1 byte ]
+```
+
+## UGreaterThan (0x29)
+
+Pops two `UInt` values and pushes a `Boolean` indicating whether the first is greater than the second.
+
+This is not compatible with `Ints` please see `GreaterThan`.
+
+The stack will be modified as follows:
+
+```
+[ ..., a, b ]
+```
+
+Will become
+
+```
+[ ..., a > b ]
+```
+
+The instruction format is as follows:
+
+```
+[ `UGreaterThan`; 1 byte ]
+```
+
+## UGreaterThanEq (0x2A)
+
+Pops two `UInt` values and pushes a `Boolean` indicating whether the first is greater than or equal the second.
+
+This is not compatible with `Ints` please see `GreaterThanEq`.
+
+The stack will be modified as follows:
+
+```
+[ ..., a, b ]
+```
+
+Will become
+
+```
+[ ..., a >= b ]
+```
+
+The instruction format is as follows:
+
+```
+[ `UGreaterThanEq`; 1 byte ]
 ```
 
 ## BoolAnd (0x31)
@@ -687,11 +902,9 @@ The instruction format is as follows:
 
 ## Jump (0x41)
 
-Pops one `Int` byte offset and unconditionally jumps to that position within the current function's instruction stream. 
+Pops one `UInt` byte offset and unconditionally jumps to that position within the current function's instruction stream. 
 
 This byte offset is an offset from the instruction base of the current function.
-
-The offset must be non-negative, otherwise execution is aborted with an `InvalidIndex` error.
 
 The stack will be modified as follows:
 
@@ -714,13 +927,11 @@ The instruction format is as follows:
 
 ## JumpIfTrue (0x42)
 
-Pops one `Int` byte offset, then pops a `Boolean`.
+Pops one `UInt` byte offset, then pops a `Boolean`.
 
 If the `Boolean` value is `true` then jumps to that position within the current function's instruction stream. 
 
 This byte offset is an offset from the instruction base of the current function.
-
-The offset must be non-negative, otherwise execution is aborted with an `InvalidIndex` error.
 
 The stack will be modified as follows:
 
@@ -743,13 +954,11 @@ The instruction format is as follows:
 
 ## JumpIfFalse (0x43)
 
-Pops one `Int` byte offset, then pops a `Boolean`.
+Pops one `UInt` byte offset, then pops a `Boolean`.
 
 If the `Boolean` value is `false` then jumps to that position within the current function's instruction stream. 
 
 This byte offset is an offset from the instruction base of the current function.
-
-The offset must be non-negative, otherwise execution is aborted with an `InvalidIndex` error.
 
 The stack will be modified as follows:
 
@@ -771,7 +980,7 @@ The instruction format is as follows:
 
 ## Call (0x44)
 
-Pops an `Int` function index and looks up the function in the function table. 
+Pops an `UInt` function index and looks up the function in the function table. 
 
 The function's declared argument count `n` is looked up from the function table, and the top `n` values on the stack become the first `n` locals of the new call frame.
 
@@ -829,7 +1038,7 @@ The instruction format is as follows:
 
 ## TailCall (0x47)
 
-Pops an `Int` function index and performs the same as the `Call` instruction.
+Pops an `UInt` function index and performs the same as the `Call` instruction.
 
 Instead of growing the call stack with a new call frame, this instruction reuses the current call frame.
 
@@ -847,7 +1056,7 @@ The instruction format is as follows:
 
 ## Load (0x51)
 
-Pops an `Int` local index from the stack and pushes a copy of that local variable's value onto the stack. 
+Pops an `UInt` local index from the stack and pushes a copy of that local variable's value onto the stack. 
 
 Aborts execution with a `OutOfBounds` error if the index exceeds the current call frame's local count.
 
@@ -870,7 +1079,7 @@ The instruction format is as follows:
 
 ## Store (0x52)
 
-Pops an `Int` local index from the stack, then pops a value and writes that value into the local variable at the index.
+Pops an `UInt` local index from the stack, then pops a value and writes that value into the local variable at the index.
 
 Aborts execution with a `OutOfBounds` error if the index exceeds the current call frame's local count.
 
@@ -976,9 +1185,9 @@ The instruction format is as follows:
 
 ## ArrayLength (0x65)
 
-Pops an `Array` and pushes its length as an `Int`. 
+Pops an `Array` and pushes its length as an `UInt`. 
 
-If the array's length exceeds the value holdable by an `Int`, execution is aborted with a `ValueTooLarge` error.
+If the array's length exceeds the value holdable by an `UInt`, execution is aborted with a `ValueTooLarge` error.
 
 The stack will be modified as follows:
 
@@ -1000,7 +1209,7 @@ The instruction format is as follows:
 
 ## ArrayNth (0x66)
 
-Pops an `Int` index, then pops an `Array`, and pushes the element at that index. 
+Pops an `UInt` index, then pops an `Array`, and pushes the element at that index. 
 
 Aborts execution with an `OutOfBounds` error if the index is out of range.
 
@@ -1044,11 +1253,11 @@ The instruction format is as follows:
 [ `ArrayAppend`; 1 byte ]
 ```
 
-## ArraySet (0x72)
+## ArraySet (0x68)
 
-Pops a value, then an `Int` array index, then an `Array`, updates that index in place in the array, and pushes the array back onto the stack.
+Pops a value, then an `UInt` array index, then an `Array`, updates that index in place in the array, and pushes the array back onto the stack.
 
-Aborts execution with an `OutOfBounds` error if the field index is out of range.
+Aborts execution with an `OutOfBounds` error if the array index is out of range.
 
 The stack will be modified as follows:
 
@@ -1070,7 +1279,7 @@ The instruction format is as follows:
 
 ## ObjectNew (0x71)
 
-Pops an `Int` object table index, looks up the field count for that object type, then pops that many values from the stack and pushes a new object of that type with those fields. 
+Pops an `UInt` object table index, looks up the field count for that object type, then pops that many values from the stack and pushes a new object of that type with those fields. 
 
 Each object type is associated with a unique `Tag`.
 
@@ -1094,7 +1303,7 @@ The instruction format is as follows:
 
 ## ObjectSet (0x72)
 
-Pops a value, then an `Int` field index, then an `Object`, mutates that field in place in the object, and pushes the object back onto the stack.
+Pops a value, then an `UInt` field index, then an `Object`, mutates that field in place in the object, and pushes the object back onto the stack.
 
 Aborts execution with an `OutOfBounds` error if the field index is out of range.
 
@@ -1118,7 +1327,7 @@ The instruction format is as follows:
 
 ## ObjectGet (0x73)
 
-Pops an `Int` field index, then an `Object`, and pushes the a copy of the value of that field
+Pops an `UInt` field index, then an `Object`, and pushes the copy of the value of that field
 
 Aborts execution with an `OutOfBounds` error if the field index is out of range.
 
@@ -1142,7 +1351,9 @@ The instruction format is as follows:
 
 ## ObjectLength (0x74)
 
-Pops an `Object` and pushes its field count as an `Int`.
+Pops an `Object` and pushes its field count as an `UInt`.
+
+If the object's field count exceeds the value holdable by an `UInt`, execution is aborted with a `ValueTooLarge` error.
 
 The stack will be modified as follows:
 
@@ -1208,7 +1419,7 @@ The instruction format is as follows:
 
 ## CallCap (0x91)
 
-Pops an `Int` capability index and invokes the registered capability handler at that index. 
+Pops an `UInt` capability index and invokes the registered capability handler at that index. 
 
 The handler has full access to the stack, heap, and tag generator, and may pop arguments and push results directly. 
 
@@ -1224,7 +1435,7 @@ The instruction format is as follows:
 
 ## Try (0xA1)
 
-Pops an `Int` byte offset and registers an error handler at that offset within the current function's instruction stream (same byte offset as  the `Jump` instructions).
+Pops an `UInt` byte offset and registers an error handler at that offset within the current function's instruction stream (same byte offset as  the `Jump` instructions).
 
 The current call stack depth is saved alongside the handler so that a subsequent `Raise` can unwind correctly.
 
@@ -1587,7 +1798,7 @@ The instruction format is as follows:
 
 ## FloatToInt (0xD2)
 
-Pops one `Float` value and pushes it converted to an `Int` by truncation toward zero.
+Pops one `Float` value and pushes it converted to an `Int` by truncation toward zero. Conversion follows Rust's primitive float-to-integer cast semantics.
 
 The stack will be modified as follows:
 
@@ -1598,7 +1809,7 @@ The stack will be modified as follows:
 Will become
 
 ```
-[ ..., trunc(a) ]
+[ ..., int_trunc(a) ]
 ```
 
 The instruction format is as follows:
@@ -1607,11 +1818,105 @@ The instruction format is as follows:
 [ `FloatToInt`; 1 byte ]
 ```
 
-## TypeOf (0xD3)
+## UIntToFloat (0xD3)
+
+Pops one `UInt` value and pushes it converted to a `Float`. 
+
+Please keep the same note as `IntToFloat` in mind.
+
+The stack will be modified as follows:
+
+```
+[ ..., a ]
+```
+
+Will become
+
+```
+[ ..., float(a) ]
+```
+
+The instruction format is as follows:
+
+```
+[ `UIntToFloat`; 1 byte ]
+```
+
+## FloatToUInt (0xD4)
+
+Pops one `Float` value and pushes it converted to an `UInt` by truncation toward zero. Conversion follows Rust's primitive float-to-integer cast semantics.
+
+The stack will be modified as follows:
+
+```
+[ ..., a ]
+```
+
+Will become
+
+```
+[ ..., uint_trunc(a) ]
+```
+
+The instruction format is as follows:
+
+```
+[ `FloatToUInt`; 1 byte ]
+```
+
+## IntToUInt (0xD5)
+
+Pops one `Int` value and pushes it converted to a `UInt`. 
+
+This directly reinterprets the bits.
+
+The stack will be modified as follows:
+
+```
+[ ..., a ]
+```
+
+Will become
+
+```
+[ ..., uint(a) ]
+```
+
+The instruction format is as follows:
+
+```
+[ `IntToUInt`; 1 byte ]
+```
+
+## UIntToInt (0xD6)
+
+Pops one `UInt` value and pushes it converted to a `Int`. 
+
+This directly reinterprets the bits.
+
+The stack will be modified as follows:
+
+```
+[ ..., a ]
+```
+
+Will become
+
+```
+[ ..., int(a) ]
+```
+
+The instruction format is as follows:
+
+```
+[ `UIntToInt`; 1 byte ]
+```
+
+## TypeOf (0xD8)
 
 Peeks at the value at the top of the stack (without consuming it) and pushes a `Tag` identifying its type. 
 
-For `Int`, `Boolean`, `Unit`, `Array`, `Tag` and `Float` values there is one `Tag` per primitive type. for `Object` values the object's own type-unique tag is returned.
+For `Int`, `UInt`, `Boolean`, `Unit`, `Array`, `Tag` and `Float` values there is one `Tag` per primitive type. for `Object` values the object's own type-unique tag is returned.
 
 The stack will be modified as follows:
 
