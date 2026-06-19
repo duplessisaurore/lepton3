@@ -14,6 +14,9 @@ pub enum Value {
     /// A simple signed integer
     Int(i64),
 
+    /// An unsigned integer
+    UInt(u64),
+
     /// A simple floating point number
     Float(f64),
 
@@ -28,6 +31,25 @@ pub enum Value {
 
     /// Integer handle pointing into the heap at an Array
     Array(usize),
+}
+
+/// A polymorphic pair of integers which can be either a pair of
+/// signed Ints (i64, i64) or
+/// unsigned `UInts` (u64, u64)
+///
+/// This is used for opcodes like Add
+pub enum PolymorphicIntPair {
+    Int(i64, i64),
+    UInt(u64, u64),
+}
+
+/// A polymorphic integers which can be unsigned or signed
+/// integer
+///
+/// This is used for opcodes like Add
+pub enum PolymorphicInt {
+    Int(i64),
+    UInt(u64),
 }
 
 /// An opaque unique value in Lepton3
@@ -50,6 +72,7 @@ impl From<Tag> for u64 {
 pub struct TypeTags {
     pub unit: Tag,
     pub int: Tag,
+    pub uint: Tag,
     pub float: Tag,
     pub boolean: Tag,
     pub tag: Tag,
@@ -68,6 +91,7 @@ impl TypeTags {
         Self {
             unit: tagger.allocate_tag(),
             int: tagger.allocate_tag(),
+            uint: tagger.allocate_tag(),
             float: tagger.allocate_tag(),
             boolean: tagger.allocate_tag(),
             tag: tagger.allocate_tag(),

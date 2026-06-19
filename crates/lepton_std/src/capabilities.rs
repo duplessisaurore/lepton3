@@ -35,6 +35,7 @@ fn format_value(value: &Value) -> String {
         Value::Tag(t) => format!("<tag:{}>", u64::from(*t)),
         Value::Object(idx) => format!("<object:{idx}>"),
         Value::Array(idx) => format!("<array:{idx}>"),
+        Value::UInt(u) => u.to_string(),
     }
 }
 
@@ -42,7 +43,7 @@ fn format_value(value: &Value) -> String {
 /// as a unicode character.
 ///
 /// # Errors
-/// 
+///
 /// Returns an error if the integer is not a valid unicode codepoint
 /// or if the value is not an integer.
 fn cap_print_char(

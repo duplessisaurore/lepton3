@@ -5,7 +5,12 @@
 
 use core::error::Error;
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 use lepton_image::format::{Image, SourceLocation};
 use lepton_opcodes::Opcode;
 
@@ -13,7 +18,7 @@ use crate::{
     capabilities::CapabilityFn,
     heap_allocator::{HeapAllocator, HeapAllocatorImpl, HeapItem},
     tagger::{TagGenerator, TagGeneratorImpl},
-    values::{Tag, TypeTags, Value},
+    values::{PolymorphicInt, PolymorphicIntPair, Tag, TypeTags, Value},
 };
 
 /// Every way execution can error.
@@ -24,7 +29,7 @@ pub enum VmError {
 
     /// An invalid value that cannot be used as an index was
     /// passed as an index
-    InvalidIndex(i64),
+    InvalidIndex(u64),
 
     /// An opcode byte that is not a valid `Opcode`.
     UnknownOpcode(u8),
@@ -40,10 +45,7 @@ pub enum VmError {
     ArgumentCountMismatch { expected: usize, got: usize },
 
     /// A value of the wrong type was on the stack.
-    TypeError {
-        expected: &'static str,
-        got: &'static str,
-    },
+    TypeError { expected: &'static str, got: String },
 
     /// Division by zero.
     DivisionByZero,
@@ -52,7 +54,7 @@ pub enum VmError {
     ModuloByZero,
 
     /// The rhs of the shift is too large.
-    ShiftRHSTooLarge(i64),
+    ShiftRHSTooLarge(String),
 
     /// The length/size of this type is too large to be turnable into length
     ValueTooLarge { value_type: &'static str },
@@ -367,6 +369,10 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Opcode::PushUnit => {
                 self.stack.push(Value::Unit);
             }
+            Opcode::PushUInt => {
+                let v = self.fetch_u64()?;
+                self.stack.push(Value::UInt(v));
+            }
             Opcode::Duplicate => {
                 let v = self.peek().ok_or(VmError::StackUnderflow).copied()?;
                 self.stack.push(v);
@@ -383,16 +389,26 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
 
             // = Integer arithmetic 0x2 =
             Opcode::Add => {
-                let (a, b) = self.pop2_int()?;
-                self.stack.push(Value::Int(a.wrapping_add(b)));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => Value::Int(a.wrapping_add(b)),
+                    PolymorphicIntPair::UInt(a, b) => Value::UInt(a.wrapping_add(b)),
+                };
+
+                self.stack.push(result);
             }
             Opcode::Sub => {
-                let (a, b) = self.pop2_int()?;
-                self.stack.push(Value::Int(a.wrapping_sub(b)));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => Value::Int(a.wrapping_sub(b)),
+                    PolymorphicIntPair::UInt(a, b) => Value::UInt(a.wrapping_sub(b)),
+                };
+                self.stack.push(result);
             }
             Opcode::Mul => {
-                let (a, b) = self.pop2_int()?;
-                self.stack.push(Value::Int(a.wrapping_mul(b)));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => Value::Int(a.wrapping_mul(b)),
+                    PolymorphicIntPair::UInt(a, b) => Value::UInt(a.wrapping_mul(b)),
+                };
+                self.stack.push(result);
             }
             Opcode::Div => {
                 let (a, b) = self.pop2_int()?;
@@ -401,6 +417,13 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 }
                 self.stack.push(Value::Int(a.wrapping_div(b)));
             }
+            Opcode::UDiv => {
+                let (a, b) = self.pop2_uint()?;
+                if b == 0 {
+                    return Err(VmError::DivisionByZero);
+                }
+                self.stack.push(Value::UInt(a.wrapping_div(b)));
+            }
             Opcode::Mod => {
                 let (a, b) = self.pop2_int()?;
                 if b == 0 {
@@ -408,47 +431,90 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 }
                 self.stack.push(Value::Int(a.wrapping_rem(b)));
             }
+            Opcode::UMod => {
+                let (a, b) = self.pop2_uint()?;
+                if b == 0 {
+                    return Err(VmError::ModuloByZero);
+                }
+                self.stack.push(Value::UInt(a.wrapping_rem(b)));
+            }
             Opcode::Neg => {
-                let a = self.pop_int()?;
-                self.stack.push(Value::Int(a.wrapping_neg()));
+                let result = match self.pop_polymorphic_int()? {
+                    PolymorphicInt::Int(a) => Value::Int(a.wrapping_neg()),
+                    PolymorphicInt::UInt(a) => Value::UInt(a.wrapping_neg()),
+                };
+                self.stack.push(result);
             }
 
             // = Bitwise Operations 0x1 =
             Opcode::ShiftL => {
-                let (a, b) = self.pop2_int()?;
-                let rhs = u32::try_from(b).map_err(|_| VmError::ShiftRHSTooLarge(b))?;
-                self.stack.push(Value::Int(a.unbounded_shl(rhs)));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => {
+                        let rhs = u32::try_from(b)
+                            .map_err(|_| VmError::ShiftRHSTooLarge(b.to_string()))?;
+                        Value::Int(a.unbounded_shl(rhs))
+                    }
+                    PolymorphicIntPair::UInt(a, b) => {
+                        let rhs = u32::try_from(b)
+                            .map_err(|_| VmError::ShiftRHSTooLarge(b.to_string()))?;
+                        Value::UInt(a.unbounded_shl(rhs))
+                    }
+                };
+                self.stack.push(result);
             }
             Opcode::ShiftR => {
                 let (a, b) = self.pop2_int()?;
-                let rhs = u32::try_from(b).map_err(|_| VmError::ShiftRHSTooLarge(b))?;
+                let rhs = u32::try_from(b).map_err(|_| VmError::ShiftRHSTooLarge(b.to_string()))?;
                 self.stack.push(Value::Int(a.unbounded_shr(rhs)));
             }
+            Opcode::UShiftR => {
+                let (a, b) = self.pop2_uint()?;
+                let rhs = u32::try_from(b).map_err(|_| VmError::ShiftRHSTooLarge(b.to_string()))?;
+                self.stack.push(Value::UInt(a.unbounded_shr(rhs)));
+            }
             Opcode::And => {
-                let (a, b) = self.pop2_int()?;
-                self.stack.push(Value::Int(a & b));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => Value::Int(a & b),
+                    PolymorphicIntPair::UInt(a, b) => Value::UInt(a & b),
+                };
+                self.stack.push(result);
             }
             Opcode::Or => {
-                let (a, b) = self.pop2_int()?;
-                self.stack.push(Value::Int(a | b));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => Value::Int(a | b),
+                    PolymorphicIntPair::UInt(a, b) => Value::UInt(a | b),
+                };
+                self.stack.push(result);
             }
             Opcode::Xor => {
-                let (a, b) = self.pop2_int()?;
-                self.stack.push(Value::Int(a ^ b));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => Value::Int(a ^ b),
+                    PolymorphicIntPair::UInt(a, b) => Value::UInt(a ^ b),
+                };
+                self.stack.push(result);
             }
             Opcode::Not => {
-                let a = self.pop_int()?;
-                self.stack.push(Value::Int(!a));
+                let result = match self.pop_polymorphic_int()? {
+                    PolymorphicInt::Int(a) => Value::Int(!a),
+                    PolymorphicInt::UInt(a) => Value::UInt(!a),
+                };
+                self.stack.push(result);
             }
 
             // = Integer comparison 0x2 =
             Opcode::Equal => {
-                let (a, b) = self.pop2_int()?;
-                self.stack.push(Value::Bool(a == b));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => Value::Bool(a == b),
+                    PolymorphicIntPair::UInt(a, b) => Value::Bool(a == b),
+                };
+                self.stack.push(result);
             }
             Opcode::NotEqual => {
-                let (a, b) = self.pop2_int()?;
-                self.stack.push(Value::Bool(a != b));
+                let result = match self.pop2_polymorphic_int()? {
+                    PolymorphicIntPair::Int(a, b) => Value::Bool(a != b),
+                    PolymorphicIntPair::UInt(a, b) => Value::Bool(a != b),
+                };
+                self.stack.push(result);
             }
             Opcode::LessThan => {
                 let (a, b) = self.pop2_int()?;
@@ -464,6 +530,25 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             }
             Opcode::GreaterThanEq => {
                 let (a, b) = self.pop2_int()?;
+                self.stack.push(Value::Bool(a >= b));
+            }
+
+            // U<Comparison> can have different behaviour from Int to UInt
+            // since Int has negatives the first bit is important
+            Opcode::ULessThan => {
+                let (a, b) = self.pop2_uint()?;
+                self.stack.push(Value::Bool(a < b));
+            }
+            Opcode::ULessThanEq => {
+                let (a, b) = self.pop2_uint()?;
+                self.stack.push(Value::Bool(a <= b));
+            }
+            Opcode::UGreaterThan => {
+                let (a, b) = self.pop2_uint()?;
+                self.stack.push(Value::Bool(a > b));
+            }
+            Opcode::UGreaterThanEq => {
+                let (a, b) = self.pop2_uint()?;
                 self.stack.push(Value::Bool(a >= b));
             }
 
@@ -548,7 +633,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             }
             Opcode::TailCall => {
                 let func_idx = self.pop_index()?;
-                
+
                 // Tail call the function at the index.
                 self.tail_call_function(func_idx)?;
             }
@@ -997,6 +1082,30 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 #[allow(clippy::cast_possible_truncation)]
                 self.stack.push(Value::Int(f as i64));
             }
+            #[cfg(feature = "floats")]
+            Opcode::UIntToFloat => {
+                let i = self.pop_uint()?;
+
+                // Precision loss is known, part of the opcodes spec
+                #[allow(clippy::cast_precision_loss)]
+                self.stack.push(Value::Float(i as f64));
+            }
+            #[cfg(feature = "floats")]
+            Opcode::FloatToUInt => {
+                let f = self.pop_float()?;
+
+                // Truncation is intentional
+                #[allow(clippy::cast_possible_truncation)]
+                self.stack.push(Value::UInt(f as u64));
+            }
+            Opcode::IntToUInt => {
+                let i = self.pop_int()?;
+                self.stack.push(Value::UInt(i.cast_unsigned()));
+            }
+            Opcode::UIntToInt => {
+                let i = self.pop_uint()?;
+                self.stack.push(Value::Int(i.cast_signed()));
+            }
             Opcode::TypeOf => {
                 // Get the tag for the value
                 let type_tag = match self.peek().ok_or(VmError::StackUnderflow)? {
@@ -1005,6 +1114,8 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                     Value::Float(_) => self.type_tags.float,
                     Value::Bool(_) => self.type_tags.boolean,
                     Value::Tag(_) => self.type_tags.tag,
+                    Value::Array(_) => self.type_tags.array,
+                    Value::UInt(_) => self.type_tags.uint,
                     Value::Object(obj_idx) => {
                         // For an object, we return it's tag.
                         match &self.heap.get_item(*obj_idx) {
@@ -1017,7 +1128,6 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                             }
                         }
                     }
-                    Value::Array(_) => self.type_tags.array,
                 };
 
                 // Push it to the stack.
@@ -1073,6 +1183,15 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         Ok(i64::from_le_bytes(buf))
     }
 
+    /// Expect a little-endian `u64` from the instruction stream.
+    fn fetch_u64(&mut self) -> Result<u64, VmError> {
+        let mut buf = [0u8; 8];
+        for b in &mut buf {
+            *b = self.fetch_byte()?;
+        }
+        Ok(u64::from_le_bytes(buf))
+    }
+
     /// Expect a little-endian `f64` from the instruction stream.
     #[cfg(feature = "floats")]
     fn fetch_f64(&mut self) -> Result<f64, VmError> {
@@ -1104,16 +1223,22 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         self.stack.last()
     }
 
-    /// Expects to convert an `i64` popped from the stack into a `usize` index,
+    /// Expects to convert an `u64` popped from the stack into a `usize` index,
     /// returning `InvalidIndex` as the error if the value is not allowed.
     fn pop_index(&mut self) -> Result<usize, VmError> {
-        let i = self.pop_int()?;
-
-        if i < 0 {
-            return Err(VmError::InvalidIndex(i));
-        }
-
+        let i = self.pop_uint()?;
         usize::try_from(i).map_err(|_| VmError::InvalidIndex(i))
+    }
+
+    /// Expects a uint at the top of the stack and pops it off
+    fn pop_uint(&mut self) -> Result<u64, VmError> {
+        match self.pop()? {
+            Value::UInt(u) => Ok(u),
+            other => Err(VmError::TypeError {
+                expected: "UInt",
+                got: String::from(value_type_name(&other)),
+            }),
+        }
     }
 
     /// Expects a int at the top of the stack and pops it off
@@ -1122,7 +1247,23 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Value::Int(i) => Ok(i),
             other => Err(VmError::TypeError {
                 expected: "Int",
-                got: value_type_name(&other),
+                got: String::from(value_type_name(&other)),
+            }),
+        }
+    }
+
+    /// Expects a int or unsigned int at the top of the stack and pops it off
+    fn pop_polymorphic_int(&mut self) -> Result<PolymorphicInt, VmError> {
+        let a = self.pop()?;
+
+        match a {
+            // Supported are i64, i64 and u64, u64
+            Value::Int(x) => Ok(PolymorphicInt::Int(x)),
+            Value::UInt(x) => Ok(PolymorphicInt::UInt(x)),
+
+            _ => Err(VmError::TypeError {
+                expected: "Int or UInt Pair",
+                got: String::from(value_type_name(&a)),
             }),
         }
     }
@@ -1134,7 +1275,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Value::Float(f) => Ok(f),
             other => Err(VmError::TypeError {
                 expected: "Float",
-                got: value_type_name(&other),
+                got: String::from(value_type_name(&other)),
             }),
         }
     }
@@ -1145,7 +1286,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Value::Bool(b) => Ok(b),
             other => Err(VmError::TypeError {
                 expected: "Bool",
-                got: value_type_name(&other),
+                got: String::from(value_type_name(&other)),
             }),
         }
     }
@@ -1156,7 +1297,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Value::Array(idx) => Ok(idx),
             other => Err(VmError::TypeError {
                 expected: "Array",
-                got: value_type_name(&other),
+                got: String::from(value_type_name(&other)),
             }),
         }
     }
@@ -1167,7 +1308,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Value::Object(idx) => Ok(idx),
             other => Err(VmError::TypeError {
                 expected: "Object",
-                got: value_type_name(&other),
+                got: String::from(value_type_name(&other)),
             }),
         }
     }
@@ -1178,7 +1319,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Value::Tag(t) => Ok(t),
             other => Err(VmError::TypeError {
                 expected: "Tag",
-                got: value_type_name(&other),
+                got: String::from(value_type_name(&other)),
             }),
         }
     }
@@ -1188,6 +1329,38 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         let b = self.pop_int()?;
         let a = self.pop_int()?;
         Ok((a, b))
+    }
+
+    /// Expects two uints at the top of the stack and pops them off
+    fn pop2_uint(&mut self) -> Result<(u64, u64), VmError> {
+        let b = self.pop_uint()?;
+        let a = self.pop_uint()?;
+        Ok((a, b))
+    }
+
+    /// Pops two values and ensures they are matching integer types.
+    /// Returns an enum indicating which type of integers were popped.
+    fn pop2_polymorphic_int(&mut self) -> Result<PolymorphicIntPair, VmError> {
+        let b = self.pop()?;
+        let a = self.pop()?;
+
+        match (a, b) {
+            // Supported are i64, i64 and u64, u64
+            (Value::Int(x), Value::Int(y)) => Ok(PolymorphicIntPair::Int(x, y)),
+            (Value::UInt(x), Value::UInt(y)) => Ok(PolymorphicIntPair::UInt(x, y)),
+
+            // Mixed integer types (not allowed)
+            (Value::Int(_), Value::UInt(_)) | (Value::UInt(_), Value::Int(_)) => {
+                Err(VmError::TypeError {
+                    expected: "matching integer types",
+                    got: format!("mixed {} and {}", value_type_name(&a), value_type_name(&b)),
+                })
+            }
+            _ => Err(VmError::TypeError {
+                expected: "Int or UInt Pair",
+                got: format!("{} and {} Pair", value_type_name(&a), value_type_name(&b)),
+            }),
+        }
     }
 
     /// Expects two floats at the top of the stack and pops them off
@@ -1276,6 +1449,7 @@ fn value_type_name(v: &Value) -> &'static str {
     match v {
         Value::Unit => "Unit",
         Value::Int(_) => "Int",
+        Value::UInt(_) => "UInt",
         Value::Float(_) => "Float",
         Value::Bool(_) => "Bool",
         Value::Tag(_) => "Tag",

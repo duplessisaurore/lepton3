@@ -96,6 +96,10 @@ opcode_enum! {
     #[cfg(feature = "floats")]
     PushFloat = (0x06, 8),
 
+    /// Pushes an unsigned integer constant onto the stack.
+    /// [ `PushUInt`; 1 byte ][ value; 8 bytes ]
+    PushUInt = (0x07, 8),
+
     // Integer Arithmetic 0x1
 
     /// Pops two integers and pushes their sum.
@@ -108,9 +112,13 @@ opcode_enum! {
     Mul = (0x12, 0),
 
     /// Pops two integers and pushes their integer quotient.
+    ///
+    /// This is not compatible with unsigned integers
     Div = (0x13, 0),
 
     /// Pops two integers and pushes their remainder.
+    ///
+    /// This is not compatible with unsigned integers
     Mod = (0x14, 0),
 
     /// Pops an integer and pushes its negation.
@@ -122,6 +130,8 @@ opcode_enum! {
     ShiftL = (0x16, 0),
 
     /// Pops two integers and pushes the result of a right shift.
+    ///
+    /// This is not unsigned integer compatible
     ShiftR = (0x17, 0),
 
     /// Pops two integers and pushes their bitwise AND.
@@ -136,6 +146,15 @@ opcode_enum! {
     /// Pops an integer and pushes its bitwise NOT.
     Not = (0x1B, 0),
 
+    /// Pops two unsigned integers and pushes their integer quotient.
+    UDiv = (0x1C, 0),
+
+    /// Pops two unsigned integers and pushes their integer quotient.
+    UMod = (0x1D, 0),
+
+    /// Pops two unsigned integers and pushes the result of a right shift.
+    UShiftR = (0x1E, 0),
+
     // Integer Comparison 0x2
 
     /// Pops two integers and pushes whether they are equal.
@@ -145,16 +164,36 @@ opcode_enum! {
     NotEqual = (0x22, 0),
 
     /// Pops two integers and pushes whether the first is less than the second.
+    ///
+    /// This is not unsigned integer compatible
     LessThan = (0x23, 0),
 
     /// Pops two integers and pushes whether the first is less than or equal to the second.
+    ///
+    /// This is not unsigned integer compatible
     LessThanEq = (0x24, 0),
 
     /// Pops two integers and pushes whether the first is greater than the second.
+    ///
+    /// This is not unsigned integer compatible
     GreaterThan = (0x25, 0),
 
     /// Pops two integers and pushes whether the first is greater than or equal to the second.
+    ///
+    /// This is not unsigned integer compatible
     GreaterThanEq = (0x26, 0),
+
+    /// Pops two unsigned integers and pushes whether the first is less than the second.
+    ULessThan = (0x27, 0),
+
+    /// Pops two unsigned integers and pushes whether the first is less than or equal to the second.
+    ULessThanEq = (0x28, 0),
+
+    /// Pops two unsigned integers and pushes whether the first is greater than the second.
+    UGreaterThan = (0x29, 0),
+
+    /// Pops two unsigned integers and pushes whether the first is greater than or equal to the second.
+    UGreaterThanEq = (0x2A, 0),
 
     // Boolean Operations 0x3
 
@@ -346,7 +385,22 @@ opcode_enum! {
     #[cfg(feature = "floats")]
     FloatToInt = (0xD2, 0),
 
+    /// Pops an unsigned integer and pushes it converted to a float.
+    /// Same issues as `IntToFloat`
+    #[cfg(feature = "floats")]
+    UIntToFloat = (0xD3, 0),
+
+    /// Pops a float and pushes it converted to an unsigned integer by truncation.
+    #[cfg(feature = "floats")]
+    FloatToUInt = (0xD4, 0),
+
+    /// Pops an integer and attempts to converts it to an unsigned integer
+    IntToUInt = (0xD5, 0),
+
+    /// Pops an unsigned integer and attempts to converts it to an integer
+    UIntToInt = (0xD6, 0),
+
     /// Pushes a tag identifying the type of the value at the top of the stack.
     /// Does not consume the value.
-    TypeOf = (0xD3, 0),
+    TypeOf = (0xD8, 0),
 }

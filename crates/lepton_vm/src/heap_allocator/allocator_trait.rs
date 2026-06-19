@@ -26,7 +26,7 @@ pub trait HeapAllocator: Default {
     /// Allocate a heap item directly, returning its index/pointer.
     ///
     /// Assumes `ensure_capacity` was already called by the caller.
-    /// Please read the note for `ensure_capacity``
+    /// Please read the note for `ensure_capacity`
     fn alloc_raw(&mut self, item: HeapItem) -> usize;
 
     /// Get the heap item from the index/pointer to the heap
