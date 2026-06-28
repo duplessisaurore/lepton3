@@ -419,13 +419,13 @@ opcode_enum! {
     // = Heap Operations 0xE =
 
     /// Clones the top value on the stack.
-    /// 
+    ///
     /// If the value is a reference to a heap value, the heap value
     /// is cloned, therefore producing a new reference to a heap value.
-    /// 
+    ///
     /// If the value is a "value-type" value which is not a reference,
     /// it is copied (similar to dup).
-    /// 
+    ///
     /// The new value/reference is then pushed onto the stack.
     Clone = (0xE1, 0)
 }

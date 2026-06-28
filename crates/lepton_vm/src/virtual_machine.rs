@@ -1092,11 +1092,17 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             #[cfg(feature = "floats")]
             Opcode::FEqual => {
                 let (a, b) = self.pop2_float()?;
+
+                // This is intended to be strict comparison,
+                // if the user wants to have a margin of error
+                // then they should implement it themselves.
+                #[allow(clippy::float_cmp)]
                 self.stack.push(Value::Bool(a == b));
             }
             #[cfg(feature = "floats")]
             Opcode::FNotEqual => {
                 let (a, b) = self.pop2_float()?;
+                #[allow(clippy::float_cmp)]
                 self.stack.push(Value::Bool(a != b));
             }
             #[cfg(feature = "floats")]
@@ -1154,8 +1160,9 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             Opcode::FloatToUInt => {
                 let f = self.pop_float()?;
 
-                // Truncation is intentional
+                // Truncation is intentional and so is the sign loss.
                 #[allow(clippy::cast_possible_truncation)]
+                #[allow(clippy::cast_sign_loss)]
                 self.stack.push(Value::UInt(f as u64));
             }
             Opcode::IntToUInt => {
