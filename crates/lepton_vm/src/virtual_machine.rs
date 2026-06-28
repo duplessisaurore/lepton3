@@ -120,16 +120,16 @@ struct ErrorHandler {
 pub struct VirtualMachine<H: HeapAllocator = HeapAllocatorImpl, T: TagGenerator = TagGeneratorImpl>
 {
     /// The image being exectued
-    image: Image,
+    pub image: Image,
 
     /// The current stack of values
-    stack: Vec<Value>,
+    pub stack: Vec<Value>,
 
     /// The allocator for heap values and GC
-    heap: H,
+    pub heap: H,
 
     /// The generator for unique tags
-    tagger: T,
+    pub tagger: T,
 
     /// Registered capability handlers.
     capabilities: Vec<CapabilityFn<H, T>>,
@@ -141,7 +141,7 @@ pub struct VirtualMachine<H: HeapAllocator = HeapAllocatorImpl, T: TagGenerator 
     error_handlers: Vec<ErrorHandler>,
 
     // Pre-allocated well-known type tags.
-    type_tags: TypeTags,
+    pub type_tags: TypeTags,
 }
 
 /// One record for the call of a function
@@ -957,7 +957,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                     .ok_or(VmError::UnknownCapability(cap_idx))?;
 
                 // Call it for some result.
-                handler(&mut self.stack, &mut self.heap, &mut self.tagger)?;
+                handler(self)?;
             }
 
             // = Error handling 0xA =

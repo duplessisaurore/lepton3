@@ -3,14 +3,16 @@
 
 use core::error::Error;
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
 
-use crate::values::Value;
+use crate::virtual_machine::VirtualMachine;
 
 /// A provided capability that the bytecode can invoke via `CallCap`.
 ///
-/// The handler receives the current value stack (mutable) and may push or
-/// pop values as needed. It also receives a mutable reference to the heap
-/// allocator and tag generator so it can allocate objects if necessary.
+/// The handler receives a mutable reference to the entirety
+/// of the current virtual machine during execution.
+/// 
+/// The handler can then access the `stack`/`heap` or anythihngh
+/// though this reference.
 pub type CapabilityFn<H, T> =
-    fn(stack: &mut Vec<Value>, heap: &mut H, tagger: &mut T) -> Result<(), Box<dyn Error>>;
+    fn(virtual_machine: &mut VirtualMachine<H, T>) -> Result<(), Box<dyn Error>>;

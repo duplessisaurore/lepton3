@@ -3,7 +3,7 @@
 
 use lepton_vm::{
     capabilities::CapabilityFn, heap_allocator::HeapAllocatorImpl, tagger::TagGeneratorImpl,
-    values::Value,
+    values::Value, virtual_machine::VirtualMachine,
 };
 
 /// Basic set of capabilities that we give to our VM
@@ -15,11 +15,9 @@ pub fn all() -> Vec<CapabilityFn<HeapAllocatorImpl, TagGeneratorImpl>> {
 /// Capability 0: pops a value from the top of the stack and
 /// prints it without a newline
 fn cap_print(
-    stack: &mut Vec<Value>,
-    _heap: &mut HeapAllocatorImpl,
-    _tagger: &mut TagGeneratorImpl,
+    virtual_machine: &mut VirtualMachine,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let value = stack
+    let value = virtual_machine.stack
         .pop()
         .ok_or("stack underflow in cap_print, no values on stack")?;
     print!("{}", format_value(&value));
@@ -47,11 +45,9 @@ fn format_value(value: &Value) -> String {
 /// Returns an error if the integer is not a valid unicode codepoint
 /// or if the value is not an integer.
 fn cap_print_char(
-    stack: &mut Vec<Value>,
-    _heap: &mut HeapAllocatorImpl,
-    _tagger: &mut TagGeneratorImpl,
+    virtual_machine: &mut VirtualMachine,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let value = stack.pop().ok_or("stack underflow in cap_print_char")?;
+    let value = virtual_machine.stack.pop().ok_or("stack underflow in cap_print_char")?;
 
     match value {
         Value::Int(i) => {
