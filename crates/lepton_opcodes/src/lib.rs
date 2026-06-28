@@ -291,6 +291,10 @@ opcode_enum! {
     /// Pops an object and pushes its field count.
     ObjectLength = (0x74, 0),
 
+    /// Pops an integer object type index and pushes its specific
+    /// unique tag for that type
+    ObjectTypeTag = (0x75, 0),
+
     // Tag Operations 0x8
 
     /// Pops two tags and pushes whether they are equal.

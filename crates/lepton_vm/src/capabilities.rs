@@ -11,7 +11,7 @@ use crate::virtual_machine::VirtualMachine;
 ///
 /// The handler receives a mutable reference to the entirety
 /// of the current virtual machine during execution.
-/// 
+///
 /// The handler can then access the `stack`/`heap` or anythihngh
 /// though this reference.
 pub type CapabilityFn<H, T> =

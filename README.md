@@ -1373,6 +1373,29 @@ The instruction format is as follows:
 [ `ObjectLength`; 1 byte ]
 ```
 
+## ObjectTypeTag (0x75)
+
+Pops an `UInt` object table index, looks up the `Tag` for that object type and returns that unique `Tag`.
+Each object type is associated with a unique `Tag`.
+
+The stack will be modified as follows:
+
+```
+[ ..., type_idx ]
+```
+
+Will become
+
+```
+[ ..., tag ]
+```
+
+The instruction format is as follows:
+
+```
+[ `ObjectTag`; 1 byte ]
+```
+
 ## TagEq (0x81)
 
 Pops two `Tag` values and pushes a `Boolean` indicating whether they are equal.

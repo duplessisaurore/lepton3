@@ -65,6 +65,9 @@ pub enum VmError {
     /// A call to a function index that does not exist.
     InvalidFunction(usize),
 
+    /// A reference to an object index that does not exist.
+    InvalidObject(usize),
+
     /// A `Raise` was executed but no error handler was installed.
     UnhandledRaise,
 
@@ -846,7 +849,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                     .image
                     .object_table
                     .get(type_idx)
-                    .ok_or(VmError::InvalidFunction(type_idx))?
+                    .ok_or(VmError::InvalidObject(type_idx))?
                     .field_count as usize;
 
                 // Pop all the fields from the stack
@@ -931,6 +934,24 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                     }
                 };
                 self.stack.push(Value::UInt(len));
+            }
+            Opcode::ObjectTypeTag => {
+                // The type index to retrieve the tag of
+                let type_idx = self.pop_index()?;
+
+                // Get the unique tag associated with this object type.
+                //
+                // This is preallocated on the start of the VM, which
+                // will either exist or not depending on the validity of the
+                // `type_idx` here.
+                let tag = self
+                    .type_tags
+                    .object
+                    .get(type_idx)
+                    .ok_or(VmError::InvalidObject(type_idx))?;
+
+                // Push tag onto the stack..
+                self.stack.push(Value::Tag(*tag));
             }
 
             // = Tag operations 0x8 =
