@@ -1095,6 +1095,47 @@ The instruction format is as follows:
 [ `Store`; 1 byte ]
 ```
 
+## LoadGlobal (0x53)
+
+Pops an `UInt` global index from the stack and pushes a copy of that global variable's value onto the stack. 
+
+Aborts execution with a `OutOfBounds` error if the index exceeds the current total global count.
+
+The stack will be modified as follows:
+
+```
+[ ..., global_idx ]
+```
+
+Will become
+
+```
+[ ..., globals[global_idx] ]
+```
+The instruction format is as follows:
+
+```
+[ `LoadGlobal`; 1 byte ]
+```
+
+## StoreGlobal (0x54)
+
+Pops an `UInt` global index from the stack, then pops a value and writes that value into the global variable at the index.
+
+This will continue to grow the globals without bound if the index exceeds the current count, globals are never erased.
+
+The stack should be as follows for the `StoreGlobal` instruction:
+
+```
+[ ..., value, global_idx ]
+```
+
+The instruction format is as follows:
+
+```
+[ `StoreGlobal`; 1 byte ]
+```
+
 ## ArrayNew (0x61)
 
 Pushes a new empty `Array` onto the stack.
@@ -1957,6 +1998,34 @@ The instruction format is as follows:
 
 ```
 [ `TypeOf`; 1 byte ]
+```
+
+## Clone (0xE1)
+
+Peeks at the value at the top of the stack (without consuming it).
+
+If the value at the top of the stack is a reference-kind. As found with `Array` and `Object`. The full heap item is cloned (at a shallow level).
+
+If the value at the top is a value-kind, the value is copied similar to `Dup`.
+
+The new value/reference is then pushed onto the stack.
+
+The stack will be modified as follows:
+
+```
+[ ..., value ]
+```
+
+Will become
+
+```
+[ ..., value, cloned_value ]
+```
+
+The instruction format is as follows:
+
+```
+[ `Clone`; 1 byte ]
 ```
 
 <a name="license"></a>

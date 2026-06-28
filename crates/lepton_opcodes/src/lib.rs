@@ -235,7 +235,7 @@ opcode_enum! {
     /// call stack.
     TailCall = (0x47, 0),
 
-    // Locals 0x5
+    // Locals & Globals 0x5
 
     /// Pops an integer local index and pushes the value of that local
     /// onto the stack.
@@ -244,6 +244,14 @@ opcode_enum! {
     /// Pops an integer local index and a value and stores the value
     /// into that local.
     Store = (0x52, 0),
+
+    /// Pops an integer global index and pushes the value of that global
+    /// onto the stack.
+    LoadGlobal = (0x53, 0),
+
+    /// Pops an integer global index and a value and stores the value
+    /// into that global.
+    StoreGlobal = (0x54, 0),
 
     // Array Operations 0x6
 
@@ -407,4 +415,17 @@ opcode_enum! {
     /// Pushes a tag identifying the type of the value at the top of the stack.
     /// Does not consume the value.
     TypeOf = (0xD8, 0),
+
+    // = Heap Operations 0xE =
+
+    /// Clones the top value on the stack.
+    /// 
+    /// If the value is a reference to a heap value, the heap value
+    /// is cloned, therefore producing a new reference to a heap value.
+    /// 
+    /// If the value is a "value-type" value which is not a reference,
+    /// it is copied (similar to dup).
+    /// 
+    /// The new value/reference is then pushed onto the stack.
+    Clone = (0xE1, 0)
 }

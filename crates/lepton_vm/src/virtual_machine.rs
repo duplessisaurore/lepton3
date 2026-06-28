@@ -143,6 +143,9 @@ pub struct VirtualMachine<H: HeapAllocator = HeapAllocatorImpl, T: TagGenerator 
     /// Registered error handlers for `Try` and `Raise`
     error_handlers: Vec<ErrorHandler>,
 
+    /// The current globals set for the VM
+    globals: Vec<Value>,
+
     // Pre-allocated well-known type tags.
     pub type_tags: TypeTags,
 }
@@ -194,6 +197,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             call_stack: Vec::new(),
             error_handlers: Vec::new(),
             image,
+            globals: Vec::new(),
         }
     }
 
@@ -607,6 +611,12 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
 
                 self.call_function(func_idx, arg_count)?;
             }
+            Opcode::TailCall => {
+                let func_idx = self.pop_index()?;
+
+                // Tail call the function at the index.
+                self.tail_call_function(func_idx)?;
+            }
             Opcode::Return => {
                 // The return value sits on top of the operand stack.
                 let ret = self.pop()?;
@@ -623,7 +633,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 return Err(VmError::Abort);
             }
 
-            // = Locals 0x5 =
+            // = Locals & Globals 0x5 =
             Opcode::Load => {
                 // Get the index of the local in the current stack
                 let local_idx = self.pop_index()?;
@@ -639,12 +649,6 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
 
                 let v = self.stack[abs_idx];
                 self.stack.push(v);
-            }
-            Opcode::TailCall => {
-                let func_idx = self.pop_index()?;
-
-                // Tail call the function at the index.
-                self.tail_call_function(func_idx)?;
             }
             Opcode::Store => {
                 // Get the index to store the local in the current stack
@@ -664,6 +668,35 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 }
 
                 self.stack[locals_base + local_idx] = value;
+            }
+            Opcode::LoadGlobal => {
+                // Get the index to load the global from
+                let global_idx = self.pop_index()?;
+
+                // Make sure it exists else OOB
+                let v = self
+                    .globals
+                    .get(global_idx)
+                    .copied()
+                    .ok_or(VmError::OutOfBounds {
+                        index: global_idx,
+                        len: self.globals.len(),
+                    })?;
+
+                self.stack.push(v);
+            }
+            Opcode::StoreGlobal => {
+                // Get the index to store the global in the current stack
+                let global_idx = self.pop_index()?;
+                let value = self.pop()?;
+
+                // Extend the globals if we are storing into a new location
+                // We trust that the user will not explode memory with unlimited globals.
+                if global_idx >= self.globals.len() {
+                    self.globals.resize(global_idx + 1, Value::Unit);
+                }
+
+                self.globals[global_idx] = value;
             }
 
             // = Array operations 0x6 =
@@ -1160,6 +1193,58 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 // Push it to the stack.
                 self.stack.push(Value::Tag(type_tag));
             }
+            // = Heap Operations 0xE =
+            Opcode::Clone => {
+                self.gc_collect();
+                let value = *self.peek().ok_or(VmError::StackUnderflow)?;
+
+                let cloned = match value {
+                    // Value types are the same as `Dup`, no allocation needed.
+                    Value::Unit
+                    | Value::Int(_)
+                    | Value::UInt(_)
+                    | Value::Bool(_)
+                    | Value::Tag(_) => value,
+                    #[cfg(feature = "floats")]
+                    Value::Float(_) => value,
+
+                    // Heap reference types
+                    Value::Array(arr_idx) => {
+                        // Allocate a new array with all the values cloned.
+                        let cloned_items = {
+                            match self.heap.get_item(arr_idx) {
+                                HeapItem::Array(v) => v.clone(),
+                                _ => {
+                                    return Err(VmError::OutOfBounds {
+                                        index: arr_idx,
+                                        len: 0,
+                                    });
+                                }
+                            }
+                        };
+                        let new_idx = self.heap.alloc_raw(HeapItem::Array(cloned_items));
+                        Value::Array(new_idx)
+                    }
+                    Value::Object(obj_idx) => {
+                        // Allocate a new object with all the fields cloned.
+                        let (tag, fields) = {
+                            match self.heap.get_item(obj_idx) {
+                                HeapItem::Object { tag, fields } => (*tag, fields.clone()),
+                                _ => {
+                                    return Err(VmError::OutOfBounds {
+                                        index: obj_idx,
+                                        len: 0,
+                                    });
+                                }
+                            }
+                        };
+                        let new_idx = self.heap.alloc_raw(HeapItem::Object { tag, fields });
+                        Value::Object(new_idx)
+                    }
+                };
+
+                self.stack.push(cloned);
+            }
         }
 
         Ok(None)
@@ -1405,12 +1490,16 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         Ok((a, b))
     }
 
-    /// Run a GC collection cycle, using all stack values as roots.
+    /// Run a GC collection cycle, using all stack and global values as roots.
     ///
     /// Read the `ensure_capacity` function of the `HeapAllocator` for
     /// an important note
     fn gc_collect(&mut self) {
-        let mut refs: Vec<&mut Value> = self.stack.iter_mut().collect();
+        let mut refs: Vec<&mut Value> = self
+            .stack
+            .iter_mut()
+            .chain(self.globals.iter_mut())
+            .collect();
         self.heap.ensure_capacity(refs.as_mut_slice());
     }
 
