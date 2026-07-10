@@ -197,11 +197,13 @@ fn parse_debug_info(r: &mut Reader) -> Result<DebugInfo, ParseError> {
         let file = r.read_u32()?;
         let line = r.read_u32()?;
         let column = r.read_u32()?;
+        let context = r.read_string()?;
         locations.push(SourceLocation {
             instruction_offset,
             file,
             line,
             column,
+            context,
         });
     }
 

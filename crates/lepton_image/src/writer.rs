@@ -175,6 +175,7 @@ fn write_debug_info(w: &mut Writer, debug_info: &DebugInfo) -> Result<(), WriteE
         w.write_u32(location.file);
         w.write_u32(location.line);
         w.write_u32(location.column);
+        w.write_string(&location.context)?;
     }
 
     Ok(())

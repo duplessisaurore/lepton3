@@ -14,10 +14,9 @@ pub fn all() -> Vec<CapabilityFn<HeapAllocatorImpl, TagGeneratorImpl>> {
 
 /// Capability 0: pops a value from the top of the stack and
 /// prints it without a newline
-fn cap_print(
-    virtual_machine: &mut VirtualMachine,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let value = virtual_machine.stack
+fn cap_print(virtual_machine: &mut VirtualMachine) -> Result<(), Box<dyn std::error::Error>> {
+    let value = virtual_machine
+        .stack
         .pop()
         .ok_or("stack underflow in cap_print, no values on stack")?;
     print!("{}", format_value(&value));
@@ -44,10 +43,11 @@ fn format_value(value: &Value) -> String {
 ///
 /// Returns an error if the integer is not a valid unicode codepoint
 /// or if the value is not an integer.
-fn cap_print_char(
-    virtual_machine: &mut VirtualMachine,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let value = virtual_machine.stack.pop().ok_or("stack underflow in cap_print_char")?;
+fn cap_print_char(virtual_machine: &mut VirtualMachine) -> Result<(), Box<dyn std::error::Error>> {
+    let value = virtual_machine
+        .stack
+        .pop()
+        .ok_or("stack underflow in cap_print_char")?;
 
     match value {
         Value::Int(i) => {

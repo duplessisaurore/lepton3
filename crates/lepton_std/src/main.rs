@@ -82,8 +82,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                             .unwrap_or("<unknown file>");
 
                         eprintln!(
-                            "  fn[{}] {} {}:{}",
-                            frame.function_idx, file_name, loc.line, loc.column
+                            "  fn[{}] {} {}:{} ({})",
+                            frame.function_idx, file_name, loc.line, loc.column, loc.context
                         );
                     }
                     None => eprintln!(

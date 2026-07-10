@@ -1563,7 +1563,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
             .partition_point(|loc| loc.instruction_offset <= abs_offset)
             .saturating_sub(1);
 
-        debug_info.locations.get(idx).copied()
+        debug_info.locations.get(idx).cloned()
     }
 }
 

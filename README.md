@@ -77,6 +77,8 @@ The `Lepton3` virtual machine executes a `Lepton3` format image that contains al
     `file`:                 u32        // index into string table
     `line`:                 u32        // line into the file
     `column`:               u32        // column into the file
+    `context_length`:       u16
+    `context`:              [u8]       // Extra context that must be attached onto a source location for extra information
 ```
 
 When running a `Lepton3` image, it is parsed which may lead to these errors:
