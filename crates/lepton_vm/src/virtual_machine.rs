@@ -705,7 +705,17 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 // and update roots.
                 self.gc_collect();
 
-                let idx = self.heap.alloc_raw(HeapItem::Array(Vec::new()));
+                // The number of values this array should begin with
+                let array_length = self.pop_index()?;
+                let mut initial_values = Vec::with_capacity(array_length);
+
+                // Pop all the values from the stack into the array
+                for _ in 0..array_length {
+                    initial_values.push(self.pop()?);
+                }
+                initial_values.reverse();
+
+                let idx = self.heap.alloc_raw(HeapItem::Array(initial_values));
                 self.stack.push(Value::Array(idx));
             }
             Opcode::ArrayCons => {

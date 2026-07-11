@@ -1140,12 +1140,22 @@ The instruction format is as follows:
 
 ## ArrayNew (0x61)
 
-Pushes a new empty `Array` onto the stack.
+Pops a `UInt` length of initial values, and all of those initial values.
+
+Pushes a new `Array` onto the stack filled with those values.
+
+The initial `UInt` length does not constrain the array's total length and it can freely grow.
+
+The stack should be as follows for the `ArrayNew` instruction:
+
+```
+[ ..., value0, ..., valueN, new_array_length ]
+```
 
 The stack after running `ArrayNew` will be:
 
 ```
-[ ..., [] ]
+[ ..., [value0, ..., valueN] ]
 ```
 
 The instruction format is as follows:

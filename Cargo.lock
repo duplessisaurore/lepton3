@@ -20,7 +20,7 @@ dependencies = [
 
 [[package]]
 name = "lepton_opcodes"
-version = "2.2.0"
+version = "3.0.0"
 
 [[package]]
 name = "lepton_std"
@@ -32,7 +32,7 @@ dependencies = [
 
 [[package]]
 name = "lepton_vm"
-version = "3.3.0"
+version = "4.0.0"
 dependencies = [
  "lepton_image",
  "lepton_opcodes",
