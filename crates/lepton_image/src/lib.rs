@@ -63,6 +63,10 @@ extern crate alloc;
 /// Rust structs
 pub mod format;
 
+/// The trait of which the image is accessed through in the Lepton3
+/// VM
+pub mod image_trait;
+
 /// Flags in the image format for Lepton3
 pub mod flags;
 

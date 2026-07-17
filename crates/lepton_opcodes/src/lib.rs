@@ -255,14 +255,14 @@ opcode_enum! {
 
     // Array Operations 0x6
 
-    /// Pops a `UInt` length of initial values, and all of those initial 
+    /// Pops a `UInt` length of initial values, and all of those initial
     /// values.
-    /// 
+    ///
     /// Pushes a new `Array` onto the stack filled with those values.
-    /// 
+    ///
     /// These values are popped in reverse order (last value first).
-    /// 
-    /// The initial `UInt` length does not constrain the array's total length 
+    ///
+    /// The initial `UInt` length does not constrain the array's total length
     /// and it can freely grow.
     ArrayNew = (0x61, 0),
 

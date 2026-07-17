@@ -1,14 +1,11 @@
 //! A set of capabilities provided to the standard VM execution
 //! binary, this provides just the basic stuff for outputting
 
-use lepton_vm::{
-    capabilities::CapabilityFn, heap_allocator::HeapAllocatorImpl, tagger::TagGeneratorImpl,
-    values::Value, virtual_machine::VirtualMachine,
-};
+use lepton_vm::{capabilities::CapabilityFn, values::Value, virtual_machine::VirtualMachine};
 
 /// Basic set of capabilities that we give to our VM
 /// essentially just a basic print of a value
-pub fn all() -> Vec<CapabilityFn<HeapAllocatorImpl, TagGeneratorImpl>> {
+pub fn all() -> Vec<CapabilityFn> {
     vec![cap_print, cap_print_char]
 }
 

@@ -41,6 +41,7 @@ pub struct Image {
 }
 
 /// Image header
+#[derive(Clone, Copy)]
 pub struct Header {
     pub version_major: u8,
     pub flags: ImageFlags,

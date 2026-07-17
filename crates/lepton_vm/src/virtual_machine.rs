@@ -11,7 +11,10 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use lepton_image::format::{Image, SourceLocation};
+use lepton_image::{
+    format::{Image, SourceLocation},
+    image_trait::LeptonImage,
+};
 use lepton_opcodes::Opcode;
 
 use crate::{
@@ -120,10 +123,13 @@ struct ErrorHandler {
 }
 
 /// The Lepton3 Interpreter/Virtual machine state
-pub struct VirtualMachine<H: HeapAllocator = HeapAllocatorImpl, T: TagGenerator = TagGeneratorImpl>
-{
+pub struct VirtualMachine<
+    H: HeapAllocator = HeapAllocatorImpl,
+    T: TagGenerator = TagGeneratorImpl,
+    I: LeptonImage = Image,
+> {
     /// The image being exectued
-    pub image: Image,
+    pub image: I,
 
     /// The current stack of values
     pub stack: Vec<Value>,
@@ -135,7 +141,7 @@ pub struct VirtualMachine<H: HeapAllocator = HeapAllocatorImpl, T: TagGenerator 
     pub tagger: T,
 
     /// Registered capability handlers.
-    capabilities: Vec<CapabilityFn<H, T>>,
+    capabilities: Vec<CapabilityFn<H, T, I>>,
 
     /// Records for activations of functions in a stack
     call_stack: Vec<CallFrame>,
@@ -171,20 +177,15 @@ struct CallFrame {
     local_count: usize,
 }
 
-impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
+impl<H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<H, T, I> {
     /// Creates a new VM from an image and a set of capabilities along
     /// with the heap allocator and tag generator.
     ///
     /// Expects the image has been already validated by the `validator`
-    pub fn new(
-        image: Image,
-        capabilities: Vec<CapabilityFn<H, T>>,
-        heap: H,
-        mut tagger: T,
-    ) -> Self {
+    pub fn new(image: I, capabilities: Vec<CapabilityFn<H, T, I>>, heap: H, mut tagger: T) -> Self {
         // Preallocate all object tags so we don't waste time during
         // execution having to consider making a tag or not.
-        let obj_tags: Vec<Tag> = (0..image.object_table.len())
+        let obj_tags: Vec<Tag> = (0..image.object_table().len())
             .map(|_| tagger.allocate_tag())
             .collect();
 
@@ -212,7 +213,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
     /// an error will occur. View all the possible execution fails in `VmError`.
     pub fn run(&mut self) -> Result<Value, VmError> {
         // Call the entry point function
-        let entry = self.image.header.entry_point as usize;
+        let entry = self.image.header().entry_point as usize;
         self.call_function(entry, 0)?;
 
         // Execute until completion
@@ -242,7 +243,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         // Ensure it exists in the function table.
         let func = self
             .image
-            .function_table
+            .function_table()
             .get(function_idx)
             .ok_or(VmError::InvalidFunction(function_idx))?;
 
@@ -290,7 +291,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         // Read the function from the function table to get all the new params
         let func = self
             .image
-            .function_table
+            .function_table()
             .get(function_idx)
             .ok_or(VmError::InvalidFunction(function_idx))?;
 
@@ -604,7 +605,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 // Get the function from the arguments
                 let func = self
                     .image
-                    .function_table
+                    .function_table()
                     .get(func_idx)
                     .ok_or(VmError::InvalidFunction(func_idx))?;
                 let arg_count = func.arg_count as usize;
@@ -890,7 +891,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
                 // Get the number of fields from the table
                 let field_count = self
                     .image
-                    .object_table
+                    .object_table()
                     .get(type_idx)
                     .ok_or(VmError::InvalidObject(type_idx))?
                     .field_count as usize;
@@ -1293,7 +1294,7 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
         // Read it from the image
         let byte = self
             .image
-            .instructions
+            .instructions()
             .get(abs)
             .copied()
             .ok_or(VmError::InvalidInstructionPointer(abs))?;
@@ -1563,17 +1564,16 @@ impl<H: HeapAllocator, T: TagGenerator> VirtualMachine<H, T> {
     ///
     /// Returns `None` if no location covers the given offset.
     fn resolve_source_location(&self, abs_offset: u32) -> Option<SourceLocation> {
-        let Some(debug_info) = &self.image.debug_info else {
+        let Some(locations) = &self.image.locations() else {
             return None;
         };
 
         // Find the closest location which covers this instruction
-        let idx = debug_info
-            .locations
+        let idx = locations
             .partition_point(|loc| loc.instruction_offset <= abs_offset)
             .saturating_sub(1);
 
-        debug_info.locations.get(idx).cloned()
+        locations.get(idx).cloned()
     }
 }
 
