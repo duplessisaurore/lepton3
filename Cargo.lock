@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "lepton3"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "lepton_image",
  "lepton_opcodes",
@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "lepton_image"
-version = "2.0.0"
+version = "2.2.0"
 dependencies = [
  "lepton_opcodes",
 ]
@@ -32,7 +32,7 @@ dependencies = [
 
 [[package]]
 name = "lepton_vm"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "lepton_image",
  "lepton_opcodes",
