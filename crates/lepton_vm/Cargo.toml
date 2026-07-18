@@ -1,6 +1,6 @@
 [package]
 name = "lepton_vm"
-version = "6.0.0"
+version = "7.0.0"
 edition = "2024"
 authors = ["The Lepton3 Contributors"]
 
