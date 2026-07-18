@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Create the virtual machine for execution
     let mut vm = VirtualMachine::new(
-        image,
+        &image,
         capabilities::all(),
         HeapAllocatorImpl::default(),
         TagGeneratorImpl::default(),

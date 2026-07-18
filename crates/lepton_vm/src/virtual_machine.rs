@@ -124,12 +124,13 @@ struct ErrorHandler {
 
 /// The Lepton3 Interpreter/Virtual machine state
 pub struct VirtualMachine<
+    'image,
     H: HeapAllocator = HeapAllocatorImpl,
     T: TagGenerator = TagGeneratorImpl,
     I: LeptonImage = Image,
 > {
     /// The image being exectued
-    pub image: I,
+    pub image: &'image I,
 
     /// The current stack of values
     pub stack: Vec<Value>,
@@ -177,12 +178,17 @@ struct CallFrame {
     local_count: usize,
 }
 
-impl<H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<H, T, I> {
+impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'image, H, T, I> {
     /// Creates a new VM from an image and a set of capabilities along
     /// with the heap allocator and tag generator.
     ///
     /// Expects the image has been already validated by the `validator`
-    pub fn new(image: I, capabilities: Vec<CapabilityFn<H, T, I>>, heap: H, mut tagger: T) -> Self {
+    pub fn new(
+        image: &'image I,
+        capabilities: Vec<CapabilityFn<H, T, I>>,
+        heap: H,
+        mut tagger: T,
+    ) -> Self {
         // Preallocate all object tags so we don't waste time during
         // execution having to consider making a tag or not.
         let obj_tags: Vec<Tag> = (0..image.object_table().len())
