@@ -13,7 +13,7 @@ use alloc::{
 };
 use lepton_image::{
     format::{Image, SourceLocation},
-    image_trait::LeptonImage,
+    image_trait::{LeptonImage, LeptonSourceLocation},
 };
 use lepton_opcodes::Opcode;
 
@@ -26,7 +26,7 @@ use crate::{
 
 /// Every way execution can error.
 #[derive(Debug)]
-pub enum VmError {
+pub enum VmError<'source_location, SL: LeptonSourceLocation> {
     /// The instruction pointer exceeds the instruction buffer.
     InvalidInstructionPointer(usize),
 
@@ -88,14 +88,14 @@ pub enum VmError {
 
     /// A runtime error with a captured stack trace attached
     WithTrace {
-        error: Box<VmError>,
-        trace: Vec<StackTraceFrame>,
+        error: Box<VmError<'source_location, SL>>,
+        trace: Vec<StackTraceFrame<'source_location, SL>>,
     },
 }
 
 /// A single frame in a captured stack trace
 #[derive(Debug)]
-pub struct StackTraceFrame {
+pub struct StackTraceFrame<'source_location, SL: LeptonSourceLocation> {
     /// Index of the function in the function table
     pub function_idx: usize,
 
@@ -104,7 +104,7 @@ pub struct StackTraceFrame {
     pub instruction_offset: usize,
 
     /// Source location if debug info is present in the image.
-    pub source_location: Option<SourceLocation>,
+    pub source_location: Option<&'source_location SL>,
 }
 
 /// A registered error handler
@@ -125,9 +125,10 @@ struct ErrorHandler {
 /// The Lepton3 Interpreter/Virtual machine state
 pub struct VirtualMachine<
     'image,
+    SL: LeptonSourceLocation = SourceLocation,
     H: HeapAllocator = HeapAllocatorImpl,
     T: TagGenerator = TagGeneratorImpl,
-    I: LeptonImage = Image,
+    I: LeptonImage<SL> = Image,
 > {
     /// The image being exectued
     pub image: &'image I,
@@ -142,7 +143,7 @@ pub struct VirtualMachine<
     pub tagger: T,
 
     /// Registered capability handlers.
-    capabilities: Vec<CapabilityFn<H, T, I>>,
+    capabilities: Vec<CapabilityFn<SL, H, T, I>>,
 
     /// Records for activations of functions in a stack
     call_stack: Vec<CallFrame>,
@@ -178,14 +179,16 @@ struct CallFrame {
     local_count: usize,
 }
 
-impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'image, H, T, I> {
+impl<'image, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I: LeptonImage<SL>>
+    VirtualMachine<'image, SL, H, T, I>
+{
     /// Creates a new VM from an image and a set of capabilities along
     /// with the heap allocator and tag generator.
     ///
     /// Expects the image has been already validated by the `validator`
     pub fn new(
         image: &'image I,
-        capabilities: Vec<CapabilityFn<H, T, I>>,
+        capabilities: Vec<CapabilityFn<SL, H, T, I>>,
         heap: H,
         mut tagger: T,
     ) -> Self {
@@ -217,7 +220,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     ///
     /// If something during the execution of the program fails, then
     /// an error will occur. View all the possible execution fails in `VmError`.
-    pub fn run(&mut self) -> Result<Value, VmError> {
+    pub fn run(&mut self) -> Result<Value, VmError<'image, SL>> {
         // Call the entry point function
         let entry = self.image.header().entry_point as usize;
         self.call_function(entry, 0)?;
@@ -245,7 +248,11 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     /// `arg_count` values are expected to already be on the stack.
     /// They become the first `arg_count` locals of the new frame.
     /// Additional locals beyond the argument count are zeroed out to `Value::Unit`
-    fn call_function(&mut self, function_idx: usize, arg_count: usize) -> Result<(), VmError> {
+    fn call_function(
+        &mut self,
+        function_idx: usize,
+        arg_count: usize,
+    ) -> Result<(), VmError<'image, SL>> {
         // Ensure it exists in the function table.
         let func = self
             .image
@@ -293,7 +300,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     /// frame's locals. They are moved down to overwrite the old locals,
     /// the frame is reset to the new function, and execution continues
     /// from `instruction_pointer=0` without pushing a new `CallFrame`.
-    fn tail_call_function(&mut self, function_idx: usize) -> Result<(), VmError> {
+    fn tail_call_function(&mut self, function_idx: usize) -> Result<(), VmError<'image, SL>> {
         // Read the function from the function table to get all the new params
         let func = self
             .image
@@ -368,7 +375,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     /// Returns an error when some runtime issue has occured during the execution
     /// of an opcode. View `VmError` for the possible error variants.
     #[allow(clippy::too_many_lines)]
-    fn step(&mut self) -> Result<Option<Value>, VmError> {
+    fn step(&mut self) -> Result<Option<Value>, VmError<'image, SL>> {
         // fetch the next opcode and advance ip
         let opcode_byte = self.fetch_byte()?;
         let opcode = Opcode::try_from(opcode_byte).map_err(VmError::UnknownOpcode)?;
@@ -1288,7 +1295,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
 
     /// Expect one byte from the current instruction stream and advance the
     /// `instruction_pointer` of the current call frame past this byte.
-    fn fetch_byte(&mut self) -> Result<u8, VmError> {
+    fn fetch_byte(&mut self) -> Result<u8, VmError<'image, SL>> {
         let frame = self
             .call_stack
             .last_mut()
@@ -1311,7 +1318,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expect a little-endian `i64` from the instruction stream.
-    fn fetch_i64(&mut self) -> Result<i64, VmError> {
+    fn fetch_i64(&mut self) -> Result<i64, VmError<'image, SL>> {
         let mut buf = [0u8; 8];
         for b in &mut buf {
             *b = self.fetch_byte()?;
@@ -1320,7 +1327,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expect a little-endian `u64` from the instruction stream.
-    fn fetch_u64(&mut self) -> Result<u64, VmError> {
+    fn fetch_u64(&mut self) -> Result<u64, VmError<'image, SL>> {
         let mut buf = [0u8; 8];
         for b in &mut buf {
             *b = self.fetch_byte()?;
@@ -1330,7 +1337,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
 
     /// Expect a little-endian `f64` from the instruction stream.
     #[cfg(feature = "floats")]
-    fn fetch_f64(&mut self) -> Result<f64, VmError> {
+    fn fetch_f64(&mut self) -> Result<f64, VmError<'image, SL>> {
         let mut buf = [0u8; 8];
         for b in &mut buf {
             *b = self.fetch_byte()?;
@@ -1339,7 +1346,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Pop a value from the top of the stack
-    fn pop(&mut self) -> Result<Value, VmError> {
+    fn pop(&mut self) -> Result<Value, VmError<'image, SL>> {
         // We must not pop into the locals area of the current frame.
         let locals_top = self
             .call_stack
@@ -1361,13 +1368,13 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
 
     /// Expects to convert an `u64` popped from the stack into a `usize` index,
     /// returning `InvalidIndex` as the error if the value is not allowed.
-    fn pop_index(&mut self) -> Result<usize, VmError> {
+    fn pop_index(&mut self) -> Result<usize, VmError<'image, SL>> {
         let i = self.pop_uint()?;
         usize::try_from(i).map_err(|_| VmError::InvalidIndex(i))
     }
 
     /// Expects a uint at the top of the stack and pops it off
-    fn pop_uint(&mut self) -> Result<u64, VmError> {
+    fn pop_uint(&mut self) -> Result<u64, VmError<'image, SL>> {
         match self.pop()? {
             Value::UInt(u) => Ok(u),
             other => Err(VmError::TypeError {
@@ -1378,7 +1385,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expects a int at the top of the stack and pops it off
-    fn pop_int(&mut self) -> Result<i64, VmError> {
+    fn pop_int(&mut self) -> Result<i64, VmError<'image, SL>> {
         match self.pop()? {
             Value::Int(i) => Ok(i),
             other => Err(VmError::TypeError {
@@ -1389,7 +1396,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expects a int or unsigned int at the top of the stack and pops it off
-    fn pop_polymorphic_int(&mut self) -> Result<PolymorphicInt, VmError> {
+    fn pop_polymorphic_int(&mut self) -> Result<PolymorphicInt, VmError<'image, SL>> {
         let a = self.pop()?;
 
         match a {
@@ -1406,7 +1413,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
 
     /// Expects a float at the top of the stack and pops it off
     #[cfg(feature = "floats")]
-    fn pop_float(&mut self) -> Result<f64, VmError> {
+    fn pop_float(&mut self) -> Result<f64, VmError<'image, SL>> {
         match self.pop()? {
             Value::Float(f) => Ok(f),
             other => Err(VmError::TypeError {
@@ -1417,7 +1424,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expects a bool at the top of the stack and pops it off
-    fn pop_bool(&mut self) -> Result<bool, VmError> {
+    fn pop_bool(&mut self) -> Result<bool, VmError<'image, SL>> {
         match self.pop()? {
             Value::Bool(b) => Ok(b),
             other => Err(VmError::TypeError {
@@ -1428,7 +1435,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expects an array at the top of the stack and pops it off
-    fn pop_array(&mut self) -> Result<usize, VmError> {
+    fn pop_array(&mut self) -> Result<usize, VmError<'image, SL>> {
         match self.pop()? {
             Value::Array(idx) => Ok(idx),
             other => Err(VmError::TypeError {
@@ -1439,7 +1446,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expects an object at the top of the stack and pops it off
-    fn pop_object(&mut self) -> Result<usize, VmError> {
+    fn pop_object(&mut self) -> Result<usize, VmError<'image, SL>> {
         match self.pop()? {
             Value::Object(idx) => Ok(idx),
             other => Err(VmError::TypeError {
@@ -1450,7 +1457,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expects a tag at the top of the stack and pops it off
-    fn pop_tag(&mut self) -> Result<crate::values::Tag, VmError> {
+    fn pop_tag(&mut self) -> Result<crate::values::Tag, VmError<'image, SL>> {
         match self.pop()? {
             Value::Tag(t) => Ok(t),
             other => Err(VmError::TypeError {
@@ -1461,14 +1468,14 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     }
 
     /// Expects two integers at the top of the stack and pops them off
-    fn pop2_int(&mut self) -> Result<(i64, i64), VmError> {
+    fn pop2_int(&mut self) -> Result<(i64, i64), VmError<'image, SL>> {
         let b = self.pop_int()?;
         let a = self.pop_int()?;
         Ok((a, b))
     }
 
     /// Expects two uints at the top of the stack and pops them off
-    fn pop2_uint(&mut self) -> Result<(u64, u64), VmError> {
+    fn pop2_uint(&mut self) -> Result<(u64, u64), VmError<'image, SL>> {
         let b = self.pop_uint()?;
         let a = self.pop_uint()?;
         Ok((a, b))
@@ -1476,7 +1483,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
 
     /// Pops two values and ensures they are matching integer types.
     /// Returns an enum indicating which type of integers were popped.
-    fn pop2_polymorphic_int(&mut self) -> Result<PolymorphicIntPair, VmError> {
+    fn pop2_polymorphic_int(&mut self) -> Result<PolymorphicIntPair, VmError<'image, SL>> {
         let b = self.pop()?;
         let a = self.pop()?;
 
@@ -1501,14 +1508,14 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
 
     /// Expects two floats at the top of the stack and pops them off
     #[cfg(feature = "floats")]
-    fn pop2_float(&mut self) -> Result<(f64, f64), VmError> {
+    fn pop2_float(&mut self) -> Result<(f64, f64), VmError<'image, SL>> {
         let b = self.pop_float()?;
         let a = self.pop_float()?;
         Ok((a, b))
     }
 
     /// Expects two bools at the top of the stack and pops them off
-    fn pop2_bool(&mut self) -> Result<(bool, bool), VmError> {
+    fn pop2_bool(&mut self) -> Result<(bool, bool), VmError<'image, SL>> {
         let b = self.pop_bool()?;
         let a = self.pop_bool()?;
         Ok((a, b))
@@ -1531,7 +1538,7 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     /// source locations from debug info if available.
     ///
     /// The trace is ordered most-recent frame first.
-    fn capture_trace(&self) -> Vec<StackTraceFrame> {
+    fn capture_trace(&self) -> Vec<StackTraceFrame<'image, SL>> {
         self.call_stack
             .iter()
             .rev()
@@ -1569,17 +1576,17 @@ impl<'image, H: HeapAllocator, T: TagGenerator, I: LeptonImage> VirtualMachine<'
     /// by searching the debug info table
     ///
     /// Returns `None` if no location covers the given offset.
-    fn resolve_source_location(&self, abs_offset: u32) -> Option<SourceLocation> {
+    fn resolve_source_location(&self, abs_offset: u32) -> Option<&'image SL> {
         let Some(locations) = &self.image.locations() else {
             return None;
         };
 
         // Find the closest location which covers this instruction
         let idx = locations
-            .partition_point(|loc| loc.instruction_offset <= abs_offset)
+            .partition_point(|loc| loc.instruction_offset() <= abs_offset)
             .saturating_sub(1);
 
-        locations.get(idx).cloned()
+        locations.get(idx)
     }
 }
 
@@ -1597,7 +1604,9 @@ fn value_type_name(v: &Value) -> &'static str {
     }
 }
 
-impl From<Box<dyn Error>> for VmError {
+impl<'source_location, SL: LeptonSourceLocation> From<Box<dyn Error>>
+    for VmError<'source_location, SL>
+{
     fn from(value: Box<dyn Error>) -> Self {
         Self::CapabilityError(value)
     }

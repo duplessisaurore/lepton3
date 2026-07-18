@@ -4,7 +4,7 @@
 use core::error::Error;
 
 use alloc::boxed::Box;
-use lepton_image::format::Image;
+use lepton_image::format::{Image, SourceLocation};
 
 use crate::{
     heap_allocator::HeapAllocatorImpl, tagger::TagGeneratorImpl, virtual_machine::VirtualMachine,
@@ -17,5 +17,5 @@ use crate::{
 ///
 /// The handler can then access the `stack`/`heap` or anythihngh
 /// though this reference.
-pub type CapabilityFn<H = HeapAllocatorImpl, T = TagGeneratorImpl, I = Image> =
-    fn(virtual_machine: &mut VirtualMachine<H, T, I>) -> Result<(), Box<dyn Error>>;
+pub type CapabilityFn<SL = SourceLocation, H = HeapAllocatorImpl, T = TagGeneratorImpl, I = Image> =
+    fn(virtual_machine: &mut VirtualMachine<SL, H, T, I>) -> Result<(), Box<dyn Error>>;
