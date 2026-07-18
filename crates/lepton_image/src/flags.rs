@@ -10,28 +10,28 @@ impl ImageFlags {
     pub const DEBUG_INFO: u16 = 0x0001;
 
     #[must_use]
-    pub fn from_raw(raw: u16) -> Self {
+    pub const fn from_raw(raw: u16) -> Self {
         Self(raw)
     }
 
     #[must_use]
-    pub fn to_raw(self) -> u16 {
+    pub const fn to_raw(self) -> u16 {
         self.0
     }
 
     /// Check if the image has a flag
     #[must_use]
-    pub fn has(self, flag: u16) -> bool {
+    pub const fn has(self, flag: u16) -> bool {
         self.0 & flag != 0
     }
 
     /// Set a flag to true on the image
-    pub fn set(&mut self, flag: u16) {
+    pub const fn set(&mut self, flag: u16) {
         self.0 |= flag;
     }
 
     /// Clear a flag/set a flag to false on the image
-    pub fn clear(&mut self, flag: u16) {
+    pub const fn clear(&mut self, flag: u16) {
         self.0 &= !flag;
     }
 }
