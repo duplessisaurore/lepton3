@@ -18,9 +18,10 @@ use crate::{
 /// The handler can then access the `stack`/`heap` or anythihngh
 /// though this reference.
 pub type CapabilityFn<
+    'image,
     CS = (),
     SL = SourceLocation,
     H = HeapAllocatorImpl,
     T = TagGeneratorImpl,
     I = Image,
-> = fn(virtual_machine: &mut VirtualMachine<CS, SL, H, T, I>) -> Result<(), Box<dyn Error>>;
+> = fn(virtual_machine: &mut VirtualMachine<'image, CS, SL, H, T, I>) -> Result<(), Box<dyn Error>>;

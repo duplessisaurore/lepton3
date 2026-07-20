@@ -150,7 +150,7 @@ pub struct VirtualMachine<
     pub tagger: T,
 
     /// Registered capability handlers.
-    capabilities: Vec<CapabilityFn<CS, SL, H, T, I>>,
+    capabilities: Vec<CapabilityFn<'image, CS, SL, H, T, I>>,
 
     /// Records for activations of functions in a stack
     pub call_stack: Vec<CallFrame>,
@@ -198,7 +198,7 @@ impl<'image, CS, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I:
     /// Expects the image has been already validated by the `validator`
     pub fn new(
         image: &'image I,
-        capabilities: Vec<CapabilityFn<CS, SL, H, T, I>>,
+        capabilities: Vec<CapabilityFn<'image, CS, SL, H, T, I>>,
         heap: H,
         mut tagger: T,
         initial_state: CS,

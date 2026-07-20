@@ -5,13 +5,20 @@ use lepton_vm::{capabilities::CapabilityFn, values::Value, virtual_machine::Virt
 
 /// Basic set of capabilities that we give to our VM
 /// essentially just a basic print of a value
-pub fn all() -> Vec<CapabilityFn> {
-    vec![cap_print, cap_print_char]
+pub fn all<'a>() -> Vec<CapabilityFn<'a>> {
+    let all_caps: Vec<CapabilityFn<'a>> = vec![
+        cap_print as CapabilityFn<'a>,
+        cap_print_char as CapabilityFn<'a>,
+    ];
+
+    all_caps
 }
 
 /// Capability 0: pops a value from the top of the stack and
 /// prints it without a newline
-fn cap_print(virtual_machine: &mut VirtualMachine) -> Result<(), Box<dyn std::error::Error>> {
+fn cap_print<'a>(
+    virtual_machine: &mut VirtualMachine<'a>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let value = virtual_machine
         .stack
         .pop()
@@ -40,7 +47,9 @@ fn format_value(value: &Value) -> String {
 ///
 /// Returns an error if the integer is not a valid unicode codepoint
 /// or if the value is not an integer.
-fn cap_print_char(virtual_machine: &mut VirtualMachine) -> Result<(), Box<dyn std::error::Error>> {
+fn cap_print_char<'a>(
+    virtual_machine: &mut VirtualMachine<'a>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let value = virtual_machine
         .stack
         .pop()
