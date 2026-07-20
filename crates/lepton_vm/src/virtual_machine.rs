@@ -1616,9 +1616,7 @@ fn value_type_name(v: &Value) -> &'static str {
     }
 }
 
-impl<SL: LeptonSourceLocation> From<Box<dyn Error>>
-    for VmError<'_, SL>
-{
+impl<SL: LeptonSourceLocation> From<Box<dyn Error>> for VmError<'_, SL> {
     fn from(value: Box<dyn Error>) -> Self {
         Self::CapabilityError(value)
     }

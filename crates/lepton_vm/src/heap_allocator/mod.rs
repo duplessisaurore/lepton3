@@ -20,6 +20,7 @@ pub use allocator_trait::HeapAllocator;
 
 use crate::values::{Tag, Value};
 
+#[derive(Clone, Debug)]
 pub enum HeapItem {
     Object { tag: Tag, fields: Vec<Value> },
     Array(Vec<Value>),

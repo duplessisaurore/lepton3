@@ -32,7 +32,7 @@ dependencies = [
 
 [[package]]
 name = "lepton_vm"
-version = "8.0.0"
+version = "8.1.0"
 dependencies = [
  "lepton_image",
  "lepton_opcodes",
