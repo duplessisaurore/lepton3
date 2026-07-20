@@ -108,23 +108,30 @@ pub struct StackTraceFrame<'source_location, SL: LeptonSourceLocation> {
 }
 
 /// A registered error handler
-struct ErrorHandler {
+pub struct ErrorHandler {
     /// Instruction offset to jump to on Raise (relative to the
     /// `instruction_base` of the frame that registered it).
-    offset: usize,
+    pub offset: usize,
 
     /// Call stack depth when Try was registered. On Raise, we unwind
     /// back to this depth before jumping to the handler.
-    call_stack_depth: usize,
+    pub call_stack_depth: usize,
 
     /// The `instruction_base` of the frame that registered this handler,
     /// so we jump to the right function's handler offset.
-    instruction_base: usize,
+    pub instruction_base: usize,
 }
 
 /// The Lepton3 Interpreter/Virtual machine state
+///
+/// The 'image lifetime defines the lifetime of the *image* the
+/// virtual machine is currently executing.
+///
+/// Capabilities can access anything other than other capabilities,
+/// as capabilities should be constructed at creation time by the vm.
 pub struct VirtualMachine<
     'image,
+    CS = (),
     SL: LeptonSourceLocation = SourceLocation,
     H: HeapAllocator = HeapAllocatorImpl,
     T: TagGenerator = TagGeneratorImpl,
@@ -143,44 +150,47 @@ pub struct VirtualMachine<
     pub tagger: T,
 
     /// Registered capability handlers.
-    capabilities: Vec<CapabilityFn<SL, H, T, I>>,
+    capabilities: Vec<CapabilityFn<CS, SL, H, T, I>>,
 
     /// Records for activations of functions in a stack
-    call_stack: Vec<CallFrame>,
+    pub call_stack: Vec<CallFrame>,
 
     /// Registered error handlers for `Try` and `Raise`
-    error_handlers: Vec<ErrorHandler>,
+    pub error_handlers: Vec<ErrorHandler>,
 
     /// The current globals set for the VM
-    globals: Vec<Value>,
+    pub globals: Vec<Value>,
 
     // Pre-allocated well-known type tags.
     pub type_tags: TypeTags,
+
+    // The state shared between all capabilities
+    pub capability_state: CS,
 }
 
 /// One record for the call of a function
-struct CallFrame {
+pub struct CallFrame {
     /// Index into the function table of the `Function` being executed.
-    function_idx: usize,
+    pub function_idx: usize,
 
     /// Byte offset within `instructions` where this function starts.
-    instruction_base: usize,
+    pub instruction_base: usize,
 
     /// Current instruction offset relative to `instruction_base`.
-    instruction_pointer: usize,
+    pub instruction_pointer: usize,
 
     /// The operand stack index at which this frame's locals begin.
     ///
     /// Locals are stored directly on the value stack below the
     /// operand area for this frame.
-    locals_base: usize,
+    pub locals_base: usize,
 
     /// Number of local slots (including parameters).
-    local_count: usize,
+    pub local_count: usize,
 }
 
-impl<'image, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I: LeptonImage<SL>>
-    VirtualMachine<'image, SL, H, T, I>
+impl<'image, CS, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I: LeptonImage<SL>>
+    VirtualMachine<'image, CS, SL, H, T, I>
 {
     /// Creates a new VM from an image and a set of capabilities along
     /// with the heap allocator and tag generator.
@@ -188,9 +198,10 @@ impl<'image, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I: Lep
     /// Expects the image has been already validated by the `validator`
     pub fn new(
         image: &'image I,
-        capabilities: Vec<CapabilityFn<SL, H, T, I>>,
+        capabilities: Vec<CapabilityFn<CS, SL, H, T, I>>,
         heap: H,
         mut tagger: T,
+        initial_state: CS,
     ) -> Self {
         // Preallocate all object tags so we don't waste time during
         // execution having to consider making a tag or not.
@@ -208,6 +219,7 @@ impl<'image, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I: Lep
             error_handlers: Vec::new(),
             image,
             globals: Vec::new(),
+            capability_state: initial_state,
         }
     }
 
@@ -1604,8 +1616,8 @@ fn value_type_name(v: &Value) -> &'static str {
     }
 }
 
-impl<'source_location, SL: LeptonSourceLocation> From<Box<dyn Error>>
-    for VmError<'source_location, SL>
+impl<SL: LeptonSourceLocation> From<Box<dyn Error>>
+    for VmError<'_, SL>
 {
     fn from(value: Box<dyn Error>) -> Self {
         Self::CapabilityError(value)
