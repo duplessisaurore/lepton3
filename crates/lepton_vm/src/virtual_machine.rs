@@ -1537,7 +1537,7 @@ impl<'image, CS, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I:
     ///
     /// Read the `ensure_capacity` function of the `HeapAllocator` for
     /// an important note
-    fn gc_collect(&mut self) {
+    pub fn gc_collect(&mut self) {
         let mut refs: Vec<&mut Value> = self
             .stack
             .iter_mut()
