@@ -260,7 +260,7 @@ impl<'image, CS, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I:
     /// `arg_count` values are expected to already be on the stack.
     /// They become the first `arg_count` locals of the new frame.
     /// Additional locals beyond the argument count are zeroed out to `Value::Unit`
-    fn call_function(
+    pub fn call_function(
         &mut self,
         function_idx: usize,
         arg_count: usize,
