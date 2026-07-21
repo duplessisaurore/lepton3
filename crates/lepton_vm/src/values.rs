@@ -53,7 +53,7 @@ pub enum PolymorphicInt {
 }
 
 /// An opaque unique value in Lepton3
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Tag(u64);
 
 impl From<u64> for Tag {
