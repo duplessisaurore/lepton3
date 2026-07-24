@@ -1623,7 +1623,8 @@ impl<
 }
 
 // Name for the value for debugging
-fn value_type_name(v: &Value) -> &'static str {
+#[must_use]
+pub fn value_type_name(v: &Value) -> &'static str {
     match v {
         Value::Unit => "Unit",
         Value::Int(_) => "Int",
