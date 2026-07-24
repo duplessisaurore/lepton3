@@ -18,7 +18,7 @@ use lepton_image::{
 use lepton_opcodes::Opcode;
 
 use crate::{
-    capabilities::CapabilityFn,
+    capabilities::{CapabilityFn, CapabilityGcRoots},
     heap_allocator::{HeapAllocator, HeapAllocatorImpl, HeapItem},
     tagger::{TagGenerator, TagGeneratorImpl},
     values::{PolymorphicInt, PolymorphicIntPair, Tag, TypeTags, Value},
@@ -131,7 +131,7 @@ pub struct ErrorHandler {
 /// as capabilities should be constructed at creation time by the vm.
 pub struct VirtualMachine<
     'image,
-    CS = (),
+    CS: CapabilityGcRoots = (),
     SL: LeptonSourceLocation = SourceLocation,
     H: HeapAllocator = HeapAllocatorImpl,
     T: TagGenerator = TagGeneratorImpl,
@@ -189,8 +189,14 @@ pub struct CallFrame {
     pub local_count: usize,
 }
 
-impl<'image, CS, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I: LeptonImage<SL>>
-    VirtualMachine<'image, CS, SL, H, T, I>
+impl<
+    'image,
+    CS: CapabilityGcRoots,
+    SL: LeptonSourceLocation,
+    H: HeapAllocator,
+    T: TagGenerator,
+    I: LeptonImage<SL>,
+> VirtualMachine<'image, CS, SL, H, T, I>
 {
     /// Creates a new VM from an image and a set of capabilities along
     /// with the heap allocator and tag generator.
@@ -260,6 +266,14 @@ impl<'image, CS, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I:
     /// `arg_count` values are expected to already be on the stack.
     /// They become the first `arg_count` locals of the new frame.
     /// Additional locals beyond the argument count are zeroed out to `Value::Unit`
+    ///
+    /// # Errors
+    ///
+    /// This will error if there is no valid function
+    /// under this `function_idx` in the function table
+    /// of this virtual machine, or if the number of arguments
+    /// on the stack doesn't match the number of arguments the
+    /// function requires.
     pub fn call_function(
         &mut self,
         function_idx: usize,
@@ -1533,7 +1547,8 @@ impl<'image, CS, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I:
         Ok((a, b))
     }
 
-    /// Run a GC collection cycle, using all stack and global values as roots.
+    /// Run a GC collection cycle, using all stack and global values as
+    /// roots, plus whatever is provided by the `CapabilityState`'s GC roots trait.
     ///
     /// Read the `ensure_capacity` function of the `HeapAllocator` for
     /// an important note
@@ -1543,6 +1558,11 @@ impl<'image, CS, SL: LeptonSourceLocation, H: HeapAllocator, T: TagGenerator, I:
             .iter_mut()
             .chain(self.globals.iter_mut())
             .collect();
+
+        // Capability state is important as it may contain extra roots that
+        // are tracked by the user of the VM
+        self.capability_state.append_roots(&mut refs);
+
         self.heap.ensure_capacity(refs.as_mut_slice());
     }
 
