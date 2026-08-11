@@ -401,7 +401,7 @@ impl<
     /// Returns an error when some runtime issue has occured during the execution
     /// of an opcode. View `VmError` for the possible error variants.
     #[allow(clippy::too_many_lines)]
-    fn step(&mut self) -> Result<Option<Value>, VmError<'image, SL>> {
+    pub fn step(&mut self) -> Result<Option<Value>, VmError<'image, SL>> {
         // fetch the next opcode and advance ip
         let opcode_byte = self.fetch_byte()?;
         let opcode = Opcode::try_from(opcode_byte).map_err(VmError::UnknownOpcode)?;
