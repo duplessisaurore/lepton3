@@ -1570,7 +1570,7 @@ impl<
     /// source locations from debug info if available.
     ///
     /// The trace is ordered most-recent frame first.
-    fn capture_trace(&self) -> Vec<StackTraceFrame<'image, SL>> {
+    pub fn capture_trace(&self) -> Vec<StackTraceFrame<'image, SL>> {
         self.call_stack
             .iter()
             .rev()
