@@ -1379,7 +1379,7 @@ impl<
         Ok(f64::from_le_bytes(buf))
     }
 
-    /// Pop a value from the top of the stack
+    /// Expects to pop a value from the top of the stack
     fn pop(&mut self) -> Result<Value, VmError<'image, SL>> {
         // We must not pop into the locals area of the current frame.
         let locals_top = self
@@ -1394,6 +1394,25 @@ impl<
 
         self.stack.pop().ok_or(VmError::StackUnderflow)
     }
+
+
+    /// Returns an Option<> for the value from the top of the stack
+    pub fn pop_maybe(&mut self) -> Option<Value> {
+        // We must not pop into the locals area of the current frame.
+        let locals_top = self
+            .call_stack
+            .last()
+            .map_or(0, |f| f.locals_base + f.local_count);
+
+        // No more left to pop, stack underflow
+        if self.stack.len() <= locals_top {
+            return None;
+        }
+
+        self.stack.pop()
+    }
+
+    
 
     /// Peeks at the last value in the stack
     fn peek(&self) -> Option<&Value> {
