@@ -446,9 +446,9 @@ impl<
                 let a = self.pop()?;
                 let b = self.pop()?;
                 let c = self.pop()?;
-                self.stack.push(c);
-                self.stack.push(a);
                 self.stack.push(b);
+                self.stack.push(a);  
+                self.stack.push(c);
             }
 
             // = Integer arithmetic 0x2 =
