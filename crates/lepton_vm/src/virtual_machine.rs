@@ -442,6 +442,14 @@ impl<
                 self.stack.push(a);
                 self.stack.push(b);
             }
+            Opcode::Rotate => {
+                let a = self.pop()?;
+                let b = self.pop()?;
+                let c = self.pop()?;
+                self.stack.push(c);
+                self.stack.push(a);
+                self.stack.push(b);
+            }
 
             // = Integer arithmetic 0x2 =
             Opcode::Add => {

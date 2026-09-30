@@ -100,6 +100,9 @@ opcode_enum! {
     /// [ `PushUInt`; 1 byte ][ value; 8 bytes ]
     PushUInt = (0x07, 8),
 
+    /// Rotates the third value onto the top of the stack. (<top> a, b, c) -> (<top> c, a, b)
+    Rotate = (0x08, 0),
+
     // Integer Arithmetic 0x1
 
     /// Pops two integers and pushes their sum.

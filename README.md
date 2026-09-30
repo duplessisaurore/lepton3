@@ -236,6 +236,28 @@ The instruction format is as follows:
 [ `PushUInt`; 1 byte ][ value; 8 bytes ]
 ```
 
+### Rotate (0x08)
+
+This instruction rotates the third value on the stack to the top. 
+
+This is such that if the stack is as follows:
+
+```
+[ ..., a, b, c ]
+```
+
+The resulting stack after `Rotate` is
+
+```
+[ ..., b, c, a  ]
+```
+
+The instruction format is as follows:
+
+```
+[ `Rotate`; 1 byte ]
+```
+
 ## Add (0x10)
 
 Pops two `Int`/`UInt` values and pushes their sum. Uses wrapping arithmetic around the boundary of the `Int`/`UInt` type.
