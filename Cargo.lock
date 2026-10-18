@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "lepton3"
-version = "10.1.3"
+version = "10.2.3"
 dependencies = [
  "lepton_image",
  "lepton_opcodes",
