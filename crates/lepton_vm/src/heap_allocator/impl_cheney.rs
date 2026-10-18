@@ -197,10 +197,12 @@ impl CheneyAllocator {
 }
 
 impl HeapAllocator for CheneyAllocator {
+    fn requires_collection(&mut self) -> bool {
+        return self.from_space.len() >= self.gc_threshold;
+    }
+
     fn ensure_capacity(&mut self, roots: &mut [&mut Value]) {
-        if self.from_space.len() >= self.gc_threshold {
-            self.collect(roots);
-        }
+        self.collect(roots);
     }
 
     fn alloc_raw(&mut self, item: HeapItem) -> usize {

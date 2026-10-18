@@ -1260,7 +1260,16 @@ impl<
             }
             // = Heap Operations 0xE =
             Opcode::Clone => {
-                self.gc_collect();
+                // We should only gc collect on a heap object.
+                let needs_gc = matches!(
+                    self.peek(),
+                    Some(Value::Array(_) | Value::Object(_))
+                );
+
+                if needs_gc {
+                    self.gc_collect();
+                }
+
                 let value = *self.peek().ok_or(VmError::StackUnderflow)?;
 
                 let cloned = match value {
@@ -1353,30 +1362,42 @@ impl<
 
     /// Expect a little-endian `i64` from the instruction stream.
     fn fetch_i64(&mut self) -> Result<i64, VmError<'image, SL>> {
-        let mut buf = [0u8; 8];
-        for b in &mut buf {
-            *b = self.fetch_byte()?;
-        }
-        Ok(i64::from_le_bytes(buf))
+        Ok(self.fetch_u64()? as i64)
     }
 
     /// Expect a little-endian `u64` from the instruction stream.
     fn fetch_u64(&mut self) -> Result<u64, VmError<'image, SL>> {
-        let mut buf = [0u8; 8];
-        for b in &mut buf {
-            *b = self.fetch_byte()?;
-        }
-        Ok(u64::from_le_bytes(buf))
+        // try grab all 8 bytes off the image rather than bytes at a time
+        let frame = self.call_stack
+            .last_mut()
+            .ok_or(VmError::CallFrameStackUnderflow)?;
+
+        let start = frame.instruction_base
+            .checked_add(frame.instruction_pointer)
+            .ok_or(VmError::InvalidInstructionPointer(usize::MAX))?;
+
+        let end = start
+            .checked_add(8)
+            .ok_or(VmError::InvalidInstructionPointer(start))?;
+
+        let bytes = self.image
+            .instructions()
+            .get(start..end)
+            .ok_or(VmError::InvalidInstructionPointer(start))?;
+
+        let value = u64::from_le_bytes(
+            bytes.try_into().unwrap()
+        );
+
+        frame.instruction_pointer += 8;
+
+        Ok(value)
     }
 
     /// Expect a little-endian `f64` from the instruction stream.
     #[cfg(feature = "floats")]
     fn fetch_f64(&mut self) -> Result<f64, VmError<'image, SL>> {
-        let mut buf = [0u8; 8];
-        for b in &mut buf {
-            *b = self.fetch_byte()?;
-        }
-        Ok(f64::from_le_bytes(buf))
+        Ok(f64::from_bits(self.fetch_u64()?))
     }
 
     /// Expects to pop a value from the top of the stack
@@ -1580,6 +1601,10 @@ impl<
     /// Read the `ensure_capacity` function of the `HeapAllocator` for
     /// an important note
     pub fn gc_collect(&mut self) {
+        if !self.heap.requires_collection() {
+            return;
+        }
+
         let mut refs: Vec<&mut Value> = self
             .stack
             .iter_mut()

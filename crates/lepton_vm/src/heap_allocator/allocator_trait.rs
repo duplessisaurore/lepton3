@@ -15,8 +15,13 @@ use crate::values::Value;
 /// be called with all live `Value` roots, so the collector can update
 /// any heap pointers that move during a collection cycle.
 pub trait HeapAllocator: Default {
-    /// Check whether a GC cycle is required and run one if so,
-    /// updating all root pointers in place.
+    /// Check whether we should perform a collection or not,
+    /// which should be done before `ensure_capacity` is called.
+    fn requires_collection(&mut self) -> bool;
+
+    /// Run one gc cycle, updating all root pointers in place.
+    /// 
+    /// Assumes `required_collection` was called.
     ///
     /// NOTE: This must always be called before popping a heap-based
     /// value off the stack into a Rust variable, to prevent root
