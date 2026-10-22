@@ -103,6 +103,10 @@ pub struct StackTraceFrame<'source_location, SL: LeptonSourceLocation> {
     /// Points to the instruction that caused the error.
     pub instruction_offset: usize,
 
+    /// The locals values in the same index as they were set for this function
+    /// Includes all locals
+    pub locals: Vec<Value>,
+
     /// Source location if debug info is present in the image.
     pub source_location: Option<&'source_location SL>,
 }
@@ -1627,6 +1631,12 @@ impl<
             .iter()
             .rev()
             .map(|frame| {
+                // Get all locals within the current frame for more debugging info
+                let mut locals = Vec::with_capacity(frame.local_count);
+                for local_idx in frame.locals_base..frame.locals_base + frame.local_count {
+                    locals.push(self.stack[local_idx]);
+                }
+
                 // `instruction_pointer` has already been advanced past the
                 // current instruction by `fetch_byte`, so subtract 1 to
                 // point back at the instruction that actually failed.
@@ -1640,6 +1650,7 @@ impl<
                         function_idx: frame.function_idx,
                         instruction_offset,
                         source_location: None,
+                        locals,
                     };
                 };
 
@@ -1651,6 +1662,7 @@ impl<
                     function_idx: frame.function_idx,
                     instruction_offset,
                     source_location,
+                    locals
                 }
             })
             .collect()
