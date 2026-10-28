@@ -6,11 +6,10 @@
 use core::error::Error;
 
 use alloc::{
-    boxed::Box,
-    format,
-    string::{String, ToString},
-    vec::Vec,
+    boxed::Box, format, string::{String, ToString}, vec::{Vec},
 };
+
+use alloc::vec;
 use lepton_image::{
     format::{Image, SourceLocation},
     image_trait::{LeptonImage, LeptonSourceLocation},
@@ -929,6 +928,21 @@ impl<
                 }
 
                 self.stack.push(Value::Array(arr_idx));
+            }
+            Opcode::ArrayNewFill => {
+                // Collect to make space for a new array if necessary
+                // and update roots.
+                self.gc_collect();
+
+                // The number of values this array should begin with
+                let array_length = self.pop_index()?;
+
+                // Pop our value off the stack
+                let value = self.pop()?;
+                let initial_values = vec![value; array_length];
+
+                let idx = self.heap.alloc_raw(HeapItem::Array(initial_values));
+                self.stack.push(Value::Array(idx));
             }
 
             // = Object operations 0x7 =

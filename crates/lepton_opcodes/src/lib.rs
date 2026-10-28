@@ -292,6 +292,15 @@ opcode_enum! {
     /// a new array with that index updated to the new value in place
     ArraySet = (0x68, 0),
 
+    /// Pops a `UInt` length of initial values, and one initial value.
+    ///
+    /// Pushes a new `Array` onto the stack filled with those values
+    /// copied up to length times.
+    ///
+    /// The initial `UInt` length does not constrain the array's total length
+    /// and it can freely grow.
+    ArrayNewFill = (0x69, 0),
+
     // Object Operations 0x7
 
     /// Pops an integer object type index and field values from the stack
