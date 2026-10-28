@@ -292,10 +292,13 @@ opcode_enum! {
     /// a new array with that index updated to the new value in place
     ArraySet = (0x68, 0),
 
-    /// Pops a `UInt` length of initial values, and one initial value.
+    /// Pops a `UInt` "repeats" value and a `UInt` length of initial values, 
+    /// and all of those initial values.
     ///
-    /// Pushes a new `Array` onto the stack filled with those values
-    /// copied up to length times.
+    /// Pushes a new `Array` onto the stack filled with those values 
+    /// repeated in the same order repeat times.
+    ///
+    /// These values are popped in reverse order (last value first).
     ///
     /// The initial `UInt` length does not constrain the array's total length
     /// and it can freely grow.

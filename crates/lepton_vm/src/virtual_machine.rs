@@ -6,10 +6,12 @@
 use core::error::Error;
 
 use alloc::{
-    boxed::Box, format, string::{String, ToString}, vec::{Vec},
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec::Vec,
 };
 
-use alloc::vec;
 use lepton_image::{
     format::{Image, SourceLocation},
     image_trait::{LeptonImage, LeptonSourceLocation},
@@ -450,7 +452,7 @@ impl<
                 let b = self.pop()?;
                 let c = self.pop()?;
                 self.stack.push(b);
-                self.stack.push(a);  
+                self.stack.push(a);
                 self.stack.push(c);
             }
 
@@ -934,14 +936,22 @@ impl<
                 // and update roots.
                 self.gc_collect();
 
+                // The number of repeats this array should follow
+                let array_repeat = self.pop_index()?;
+
                 // The number of values this array should begin with
                 let array_length = self.pop_index()?;
+                let mut initial_values = Vec::with_capacity(array_length);
 
-                // Pop our value off the stack
-                let value = self.pop()?;
-                let initial_values = vec![value; array_length];
+                // Pop all the values from the stack into the array
+                for _ in 0..array_length {
+                    initial_values.push(self.pop()?);
+                }
+                initial_values.reverse();
 
-                let idx = self.heap.alloc_raw(HeapItem::Array(initial_values));
+                let idx = self
+                    .heap
+                    .alloc_raw(HeapItem::Array(initial_values.repeat(array_repeat)));
                 self.stack.push(Value::Array(idx));
             }
 
@@ -1279,10 +1289,7 @@ impl<
             // = Heap Operations 0xE =
             Opcode::Clone => {
                 // We should only gc collect on a heap object.
-                let needs_gc = matches!(
-                    self.peek(),
-                    Some(Value::Array(_) | Value::Object(_))
-                );
+                let needs_gc = matches!(self.peek(), Some(Value::Array(_) | Value::Object(_)));
 
                 if needs_gc {
                     self.gc_collect();
@@ -1386,11 +1393,13 @@ impl<
     /// Expect a little-endian `u64` from the instruction stream.
     fn fetch_u64(&mut self) -> Result<u64, VmError<'image, SL>> {
         // try grab all 8 bytes off the image rather than bytes at a time
-        let frame = self.call_stack
+        let frame = self
+            .call_stack
             .last_mut()
             .ok_or(VmError::CallFrameStackUnderflow)?;
 
-        let start = frame.instruction_base
+        let start = frame
+            .instruction_base
             .checked_add(frame.instruction_pointer)
             .ok_or(VmError::InvalidInstructionPointer(usize::MAX))?;
 
@@ -1398,14 +1407,13 @@ impl<
             .checked_add(8)
             .ok_or(VmError::InvalidInstructionPointer(start))?;
 
-        let bytes = self.image
+        let bytes = self
+            .image
             .instructions()
             .get(start..end)
             .ok_or(VmError::InvalidInstructionPointer(start))?;
 
-        let value = u64::from_le_bytes(
-            bytes.try_into().unwrap()
-        );
+        let value = u64::from_le_bytes(bytes.try_into().unwrap());
 
         frame.instruction_pointer += 8;
 
@@ -1434,7 +1442,6 @@ impl<
         self.stack.pop().ok_or(VmError::StackUnderflow)
     }
 
-
     /// Returns an Option<> for the value from the top of the stack
     pub fn pop_maybe(&mut self) -> Option<Value> {
         // We must not pop into the locals area of the current frame.
@@ -1450,8 +1457,6 @@ impl<
 
         self.stack.pop()
     }
-
-    
 
     /// Peeks at the last value in the stack
     fn peek(&self) -> Option<&Value> {
@@ -1676,7 +1681,7 @@ impl<
                     function_idx: frame.function_idx,
                     instruction_offset,
                     source_location,
-                    locals
+                    locals,
                 }
             })
             .collect()
